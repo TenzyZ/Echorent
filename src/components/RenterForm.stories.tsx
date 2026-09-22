@@ -11,8 +11,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Empty: Story = {
   args: {
-    carId: 'xtrail',
-    airport: 'DXB',
+    car: { id: 'demo-dxb-2', name: 'Nissan X-Trail', category: 'SUV', transmission: 'Automatic', seats: 5, bags: 4, pricePerDay: 210, currency: 'AED' },
     onSubmit: () => {},
     onSignIn: () => {}
   },

@@ -1,24 +1,21 @@
 import { useState } from 'react';
-import type { User } from '../auth';
-import { getCars } from '../cars';
+import type { Car } from '../cars';
+import type { RenterIdentity } from './AgreementCard';
 
 // The renter step of the agreement flow. It appears where the car cards were,
 // right after the spoken confirm: type name and email, or take the Google
 // shortcut. The drafted agreement follows with the renter populated.
 export function RenterForm({
-  carId,
-  airport,
+  car,
   onSubmit,
   onSignIn
 }: {
-  carId: string;
-  airport?: string;
-  onSubmit: (user: User) => void;
+  car?: Car;
+  onSubmit: (user: RenterIdentity) => void;
   onSignIn: () => void;
 }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const car = getCars(airport).find((c) => c.id === carId);
   const ready = name.trim() !== '' && email.trim() !== '';
   return (
     <form

@@ -17,7 +17,7 @@ export function rms(samples: Float32Array): number {
   return Math.sqrt(sum / samples.length);
 }
 
-// Schedules PCM chunks back to back on a sample-rate clock, without an AudioContext.
+// Schedules PCM chunks back to back on an absolute AudioContext clock.
 export class PlaybackPlanner {
   private clock = 0;
 
@@ -27,9 +27,9 @@ export class PlaybackPlanner {
     return this.clock;
   }
 
-  schedule(samples: Float32Array): number {
-    const start = this.clock;
-    this.clock += samples.length / this.sampleRate;
+  schedule(samples: Float32Array, currentTime: number): number {
+    const start = Math.max(this.clock, currentTime);
+    this.clock = start + samples.length / this.sampleRate;
     return start;
   }
 

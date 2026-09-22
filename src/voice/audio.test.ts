@@ -44,14 +44,21 @@ describe('PlaybackPlanner', () => {
   it('schedules chunks back to back on the 24 kHz timeline', () => {
     const planner = new PlaybackPlanner();
     const chunk = new Float32Array(2400); // 0.1 s at 24 kHz
-    expect(planner.schedule(chunk)).toBe(0);
-    expect(planner.schedule(chunk)).toBeCloseTo(0.1, 10);
-    expect(planner.nextStartTime()).toBeCloseTo(0.2, 10);
+    expect(planner.schedule(chunk, 5)).toBe(5);
+    expect(planner.schedule(chunk, 5.05)).toBeCloseTo(5.1, 10);
+    expect(planner.nextStartTime()).toBeCloseTo(5.2, 10);
+  });
+
+  it('starts from current audio time after an idle gap', () => {
+    const planner = new PlaybackPlanner();
+    const chunk = new Float32Array(2400);
+    planner.schedule(chunk, 1);
+    expect(planner.schedule(chunk, 4)).toBe(4);
   });
 
   it('flush resets the clock to 0', () => {
     const planner = new PlaybackPlanner();
-    planner.schedule(new Float32Array(2400));
+    planner.schedule(new Float32Array(2400), 2);
     planner.flush();
     expect(planner.nextStartTime()).toBe(0);
   });

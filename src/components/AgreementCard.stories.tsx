@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { demoUser } from '../auth';
 import { AgreementCard } from './AgreementCard';
 
 const meta = {
@@ -13,8 +12,8 @@ type Story = StoryObj<typeof meta>;
 export const Draft: Story = {
   args: {
     agreement: { carId: 'xtrail' },
-    trip: { airport: 'DXB', dates: 'This weekend', passengers: 4, luggage: 3 },
-    user: demoUser,
+    car: { id: 'demo-dxb-2', name: 'Nissan X-Trail', category: 'SUV', transmission: 'Automatic', seats: 5, bags: 4, pricePerDay: 210, currency: 'AED' },
+    user: { name: 'Amirah Tan', email: 'amirah@example.com' },
     submitting: false,
     leaving: false,
     onSubmit: () => {},

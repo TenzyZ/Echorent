@@ -1,18 +1,15 @@
-import { getCars } from '../cars';
-import { getLocations } from '../locations';
+import type { Car } from '../cars';
 import type { TripIntent } from '../state/uiState';
 
 export function DetailsSheet({
   trip,
-  carId,
+  car,
   onClose
 }: {
   trip: TripIntent;
-  carId?: string;
+  car?: Car;
   onClose: () => void;
 }) {
-  const car = getCars(trip.airport).find((c) => c.id === carId);
-  const location = getLocations().find((l) => l.code === trip.airport);
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div
@@ -26,19 +23,19 @@ export function DetailsSheet({
         <dl className="sheet__rows">
           <div className="sheet__row">
             <dt>Airport</dt>
-            <dd>{location?.name ?? trip.airport ?? 'Not set'}</dd>
+            <dd>{trip.airportName ?? trip.airport ?? 'Not set'}</dd>
           </div>
           <div className="sheet__row">
-            <dt>Dates</dt>
-            <dd>{trip.dates ?? 'Not set'}</dd>
+            <dt>Pickup</dt>
+            <dd>{trip.pickup ?? 'Not set'}</dd>
           </div>
           <div className="sheet__row">
-            <dt>Passengers</dt>
-            <dd>{trip.passengers ?? 'Not set'}</dd>
+            <dt>Return</dt>
+            <dd>{trip.return ?? 'Not set'}</dd>
           </div>
           <div className="sheet__row">
-            <dt>Luggage</dt>
-            <dd>{trip.luggage ?? 'Not set'}</dd>
+            <dt>Driver age</dt>
+            <dd>{trip.driverAge ?? 'Not set'}</dd>
           </div>
           <div className="sheet__row">
             <dt>Car</dt>

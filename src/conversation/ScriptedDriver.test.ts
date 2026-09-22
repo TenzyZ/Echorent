@@ -57,16 +57,10 @@ describe('ScriptedDriver', () => {
     expect(events).toEqual([{ type: 'ui.text.submit', text: 'Any Vezel free?' }]);
   });
 
-  it('sendToolResult is a no-op', () => {
+  it('setMic reports the actual scripted microphone state', () => {
     const { driver, events } = makeDriver();
-    driver.start();
-    driver.sendToolResult('t1', '{}');
-    vi.advanceTimersByTime(60_000);
-    expect(events).toEqual([
-      { type: 'user.speech.started' },
-      { type: 'user.delta', text: 'Hi' },
-      { type: 'user.speech.stopped' }
-    ]);
+    driver.setMic(false);
+    expect(events).toEqual([{ type: 'mic.changed', enabled: false }]);
   });
 
   it('start twice replays the script from the beginning without double-scheduling', () => {

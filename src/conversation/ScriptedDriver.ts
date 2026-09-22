@@ -26,12 +26,12 @@ export class ScriptedDriver implements ConversationDriver {
     this.clearTimers();
   }
 
-  sendText(text: string): void {
-    this.onEvent?.({ type: 'ui.text.submit', text });
+  setMic(enabled: boolean): void {
+    this.onEvent?.({ type: 'mic.changed', enabled });
   }
 
-  sendToolResult(_id: string, _output: string): void {
-    // no tools to answer in the scripted demo
+  sendText(text: string): void {
+    this.onEvent?.({ type: 'ui.text.submit', text });
   }
 
   private clearTimers(): void {

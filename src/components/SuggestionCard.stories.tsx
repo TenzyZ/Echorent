@@ -11,11 +11,8 @@ type Story = StoryObj<typeof meta>;
 
 export const Hrv: Story = {
   args: {
-    card: {
-      carId: 'hrv',
-      reason: 'Fits your family of four with room for a stroller and three bags.'
-    },
-    airport: 'SIN',
+    car: { id: 'demo-sin-2', name: 'Honda HR-V', category: 'SUV', transmission: 'Automatic', seats: 5, bags: 3, pricePerDay: 95, currency: 'SGD' },
+    note: 'Demo cars and prices, not live availability.',
     onDismiss: () => {},
     onOpenDetails: () => {}
   },
@@ -29,7 +26,7 @@ export const Hrv: Story = {
 export const Dubai: Story = {
   args: {
     ...Hrv.args,
-    airport: 'DXB'
+    car: { id: 'demo-dxb-2', name: 'Nissan X-Trail', category: 'SUV', transmission: 'Automatic', seats: 5, bags: 4, pricePerDay: 210, currency: 'AED' }
   },
   render: Hrv.render
 };

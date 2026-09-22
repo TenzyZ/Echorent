@@ -3,9 +3,12 @@ import type { Phase } from '../state/uiState';
 
 const LABELS: Record<Phase, string> = {
   idle: 'Tap the mic to start',
+  connecting: 'Connecting…',
   listening: 'Listening…',
   thinking: 'Thinking…',
-  speaking: 'Speaking…'
+  speaking: 'Speaking…',
+  error: 'Connection error',
+  ended: 'Call ended'
 };
 
 export function VoiceOrb({ phase }: { phase: Phase }) {

@@ -39,6 +39,16 @@ function code(response) {
   return response.errors[0].code;
 }
 
+async function withServer(options, run) {
+  const server = createServer(options);
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    await run(`http://127.0.0.1:${server.address().port}`);
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
 describe("searchCars date and state contract", () => {
   test("T1 golden SIN request normalizes dates and weekdays", () => {
     const response = result();
@@ -241,6 +251,7 @@ describe("T14 HTTP transport behavior", () => {
   const logs = [];
   let server;
   let baseUrl;
+  let browserUrl;
 
   const post = (body, url = baseUrl) => fetch(url, {
     method: "POST",
@@ -251,7 +262,9 @@ describe("T14 HTTP transport behavior", () => {
   before(async () => {
     server = createServer({ secret, now: NOW, logger: (line) => logs.push(line) });
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-    baseUrl = `http://127.0.0.1:${server.address().port}/tools/search_cars`;
+    const root = `http://127.0.0.1:${server.address().port}`;
+    baseUrl = `${root}/tools/search_cars`;
+    browserUrl = `${root}/api/search_cars`;
   });
 
   after(async () => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
@@ -284,6 +297,41 @@ describe("T14 HTTP transport behavior", () => {
     assert.equal((await response.json()).errors[0].code, "driver_underage");
   });
 
+  test("browser search needs no bearer secret and matches canonical searchCars", async () => {
+    const response = await fetch(browserUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(golden),
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), result());
+  });
+
+  test("browser and legacy routes return the same canonical result", async () => {
+    const body = JSON.stringify(golden);
+    const browser = await fetch(browserUrl, { method: "POST", body });
+    const legacy = await post(body);
+    assert.equal(browser.status, 200);
+    assert.equal(legacy.status, 200);
+    assert.deepEqual(await browser.json(), await legacy.json());
+  });
+
+  test("browser search preserves canonical business failures", async () => {
+    for (const [overrides, expected] of [
+      [{ driver_age: 20 }, "driver_underage"],
+      [{ pickup_airport: "LHR" }, "unsupported_airport"],
+    ]) {
+      const response = await fetch(browserUrl, { method: "POST", body: JSON.stringify({ ...golden, ...overrides }) });
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).errors[0].code, expected);
+    }
+  });
+
+  test("browser search rejects malformed JSON and wrong methods", async () => {
+    assert.equal((await fetch(browserUrl, { method: "POST", body: "not json" })).status, 400);
+    assert.equal((await fetch(browserUrl)).status, 405);
+  });
+
   test("logs never contain the tool secret", async () => {
     await post(JSON.stringify(golden));
     assert.ok(logs.length > 0);
@@ -309,6 +357,111 @@ describe("T14 HTTP transport behavior", () => {
       process.off("unhandledRejection", onRejection);
       await new Promise((resolve) => throwing.close(resolve));
     }
+  });
+});
+
+test("browser route passes injected inventory through canonical searchCars", async () => {
+  const car = (car_id, daily_rate) => ({
+    car_id, airport: "SIN", name: car_id, category: "economy", transmission: "automatic",
+    seats: 5, bags: 2, daily_rate, currency: "SGD",
+  });
+  const cars = [car("demo-sin-z", 90), car("demo-sin-a", 40), car("demo-sin-b", 40)];
+  await withServer({ secret: "secret", now: NOW, cars, logger: () => {} }, async (root) => {
+    const response = await fetch(`${root}/api/search_cars`, { method: "POST", body: JSON.stringify(golden) });
+    assert.deepEqual(await response.json(), searchCars(golden, { now: NOW, cars }));
+  });
+});
+
+describe("voice token route", () => {
+  const apiKey = "private-api-key";
+  const agentId = "private-agent-id";
+  const token = "single-use-token";
+  const okFetch = async () => new Response(JSON.stringify({ token }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+
+  test("returns exactly token and agent_id with no-store", async () => {
+    await withServer({ apiKey, agentId, fetchImpl: okFetch, logger: () => {} }, async (root) => {
+      const response = await fetch(`${root}/api/voice/token`);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.deepEqual(await response.json(), { token, agent_id: agentId });
+    });
+  });
+
+  test("uses the expected upstream URL, query, and bearer header", async () => {
+    let request;
+    const fetchImpl = async (url, options) => {
+      request = { url: String(url), options };
+      return okFetch();
+    };
+    await withServer({ apiKey, agentId, fetchImpl, logger: () => {} }, async (root) => {
+      assert.equal((await fetch(`${root}/api/voice/token`)).status, 200);
+    });
+    assert.equal(request.url, "https://agents.assemblyai.com/v1/token?expires_in_seconds=60&max_session_duration_seconds=1800");
+    assert.equal(request.options.method, "GET");
+    assert.equal(request.options.headers.Authorization, `Bearer ${apiKey}`);
+  });
+
+  test("never returns or logs server credentials", async () => {
+    const logs = [];
+    await withServer({ apiKey, agentId, fetchImpl: okFetch, logger: (line) => logs.push(line) }, async (root) => {
+      const body = await (await fetch(`${root}/api/voice/token`)).text();
+      assert.equal(body.includes(apiKey), false);
+      assert.equal(logs.some((line) => [apiKey, token, agentId].some((secret) => line.includes(secret))), false);
+    });
+  });
+
+  test("missing API key or agent ID returns 503 without an upstream call", async () => {
+    for (const config of [{ apiKey: "", agentId }, { apiKey, agentId: "" }]) {
+      let calls = 0;
+      await withServer({ ...config, fetchImpl: async () => { calls += 1; return okFetch(); }, logger: () => {} }, async (root) => {
+        const response = await fetch(`${root}/api/voice/token`);
+        assert.equal(response.status, 503);
+        assert.deepEqual(await response.json(), { error: "voice_unavailable" });
+        assert.equal(response.headers.get("cache-control"), "no-store");
+      });
+      assert.equal(calls, 0);
+    }
+  });
+
+  test("upstream non-2xx, malformed JSON, and missing token return 502", async () => {
+    const fetches = [
+      async () => new Response("no", { status: 500 }),
+      async () => new Response("not json", { status: 200 }),
+      async () => new Response("{}", { status: 200 }),
+    ];
+    for (const fetchImpl of fetches) {
+      await withServer({ apiKey, agentId, fetchImpl, logger: () => {} }, async (root) => {
+        const response = await fetch(`${root}/api/voice/token`);
+        assert.equal(response.status, 502);
+        assert.deepEqual(await response.json(), { error: "token_unavailable" });
+      });
+    }
+  });
+
+  test("network errors and timeouts return 502", async () => {
+    const fetches = [
+      async () => { throw new Error("offline"); },
+      (_url, { signal }) => new Promise((resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      }),
+    ];
+    for (const fetchImpl of fetches) {
+      await withServer({ apiKey, agentId, fetchImpl, tokenTimeoutMs: 5, logger: () => {} }, async (root) => {
+        assert.equal((await fetch(`${root}/api/voice/token`)).status, 502);
+      });
+    }
+  });
+
+  test("POST returns 405 and every response disables caching", async () => {
+    await withServer({ apiKey, agentId, fetchImpl: okFetch, logger: () => {} }, async (root) => {
+      const response = await fetch(`${root}/api/voice/token`, { method: "POST" });
+      assert.equal(response.status, 405);
+      assert.deepEqual(await response.json(), { error: "method_not_allowed" });
+      assert.equal(response.headers.get("cache-control"), "no-store");
+    });
   });
 });
 
@@ -339,7 +492,7 @@ test("T20 canonical agent preserves Shen identity and exposes only search_cars",
   assert.equal(agent.tools.length, 1);
   const [tool] = agent.tools;
   assert.equal(tool.name, "search_cars");
-  assert.equal(tool.http.http_method, "POST");
+  assert.equal("http" in tool, false);
   assert.equal(tool.execution_mode, "hold");
   assert.equal(tool.timeout_seconds, 10);
   assert.deepEqual(tool.parameters.required, REQUIRED);
@@ -356,8 +509,6 @@ test("T20 canonical agent preserves Shen identity and exposes only search_cars",
     assert.ok(examples.length > 0);
     assert.equal(examples.every((example) => expression.test(example)), true, field);
   }
-  assert.equal(tool.http.url, "${ECHORENT_TOOLS_URL}/tools/search_cars");
-  assert.equal(tool.http.headers[0].value, "Bearer ${ECHORENT_TOOL_SECRET}");
   assert.equal(agent.tools.some(({ name }) => /booking|reserv|state|get_car_details/i.test(name)), false);
   assert.equal("input" in agent, false);
   assert.equal("llm" in agent, false);

@@ -32,6 +32,15 @@ describe('parseServerMessage', () => {
     });
   });
 
+  it('parses final user and agent transcripts', () => {
+    expect(parseServerMessage('{"type":"transcript.user","text":"a Honda"}')).toEqual({
+      type: 'transcript.user', text: 'a Honda'
+    });
+    expect(parseServerMessage('{"type":"transcript.agent","text":"A Honda.","interrupted":false}')).toEqual({
+      type: 'transcript.agent', text: 'A Honda.', interrupted: false
+    });
+  });
+
   it('parses transcript.agent.delta', () => {
     expect(parseServerMessage('{"type":"transcript.agent.delta","delta":" Vezel"}')).toEqual({
       type: 'transcript.agent.delta',
@@ -63,13 +72,13 @@ describe('parseServerMessage', () => {
   it('parses tool.call with object arguments', () => {
     expect(
       parseServerMessage(
-        '{"type":"tool.call","call_id":"t1","name":"suggest_cars","arguments":{"cars":[{"car_id":"vezel"}]}}'
+        '{"type":"tool.call","call_id":"t1","name":"search_cars","arguments":{"pickup_airport":"DXB"}}'
       )
     ).toEqual({
       type: 'tool.call',
       call_id: 't1',
-      name: 'suggest_cars',
-      arguments: { cars: [{ car_id: 'vezel' }] }
+      name: 'search_cars',
+      arguments: { pickup_airport: 'DXB' }
     });
   });
 
@@ -112,5 +121,7 @@ describe('parseServerMessage', () => {
       parseServerMessage('{"type":"tool.call","call_id":"t1","name":"x","arguments":"{\\"a\\":1}"}')
     ).toBeNull();
     expect(parseServerMessage('{"type":"tool.call","call_id":"t1","name":"x","arguments":null}')).toBeNull();
+    expect(parseServerMessage('{"type":"tool.call","call_id":"t1","name":"x","arguments":[]}')).toBeNull();
+    expect(parseServerMessage('{"type":"transcript.agent","text":"x"}')).toBeNull();
   });
 });

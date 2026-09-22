@@ -4,6 +4,6 @@ export interface ConversationDriver {
   onEvent?: (event: UIEvent) => void;
   start(): void;
   stop(): void;
+  setMic(enabled: boolean): void;
   sendText(text: string): void;
-  sendToolResult(id: string, output: string): void;
 }

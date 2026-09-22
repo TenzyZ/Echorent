@@ -12,9 +12,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-// The stage autostarts the script: greeting, family car at Changi, cheaper
-// swap, a move to Dubai that reprices every card in AED, then a spoken
-// confirm that brings up the renter form; the drafted agreement follows.
+// Tap the mic to replay the scripted backend-shaped search and selection boundary.
 export const ExampleConversation: Story = {
   name: 'Example conversation',
   parameters: { layout: 'fullscreen' },

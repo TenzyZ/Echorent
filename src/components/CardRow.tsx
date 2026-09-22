@@ -1,16 +1,16 @@
 import { useRef, useState } from 'react';
-import type { Suggestion } from '../state/uiState';
+import type { Car } from '../cars';
 import { SuggestionCard } from './SuggestionCard';
 
 // The car results. One card fills the row. Swipe right for the next card.
 export function CardRow({
   cards,
-  airport,
+  notice,
   onDismiss,
   onOpenDetails
 }: {
-  cards: Suggestion[];
-  airport?: string;
+  cards: Car[];
+  notice: string | null;
   onDismiss: (carId: string) => void;
   onOpenDetails: (carId: string) => void;
 }) {
@@ -41,11 +41,11 @@ export function CardRow({
       >
         {cards.map((card) => (
           <SuggestionCard
-            key={card.carId}
-            card={card}
-            airport={airport}
-            onDismiss={() => onDismiss(card.carId)}
-            onOpenDetails={() => onOpenDetails(card.carId)}
+            key={card.id}
+            car={card}
+            note={notice}
+            onDismiss={() => onDismiss(card.id)}
+            onOpenDetails={() => onOpenDetails(card.id)}
           />
         ))}
       </div>
@@ -53,7 +53,7 @@ export function CardRow({
         <div className="cards__dots">
           {cards.map((card, i) => (
             <button
-              key={card.carId}
+              key={card.id}
               type="button"
               className={i === active ? 'cards__dot cards__dot--on' : 'cards__dot'}
               aria-label={`Show car ${i + 1} of ${cards.length}`}

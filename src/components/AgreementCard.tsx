@@ -1,13 +1,20 @@
-import type { User } from '../auth';
-import { getCars } from '../cars';
-import type { Agreement, TripIntent } from '../state/uiState';
+import type { Car } from '../cars';
+
+export interface Agreement {
+  carId: string;
+}
+
+export interface RenterIdentity {
+  name: string;
+  email: string;
+}
 
 // The drafted agreement. It appears where the car cards were, once the
 // renter details are in, with the renter populated. Details live behind
 // "View details"; Submit sends the draft to the backend.
 export function AgreementCard({
   agreement,
-  trip,
+  car,
   user,
   submitting,
   leaving,
@@ -15,14 +22,13 @@ export function AgreementCard({
   onOpenDetails
 }: {
   agreement: Agreement;
-  trip: TripIntent;
-  user: User;
+  car?: Car;
+  user: RenterIdentity;
   submitting: boolean;
   leaving: boolean;
   onSubmit: () => void;
   onOpenDetails: (carId: string) => void;
 }) {
-  const car = getCars(trip.airport).find((c) => c.id === agreement.carId);
   return (
     <article
       className={'agreement' + (leaving ? ' agreement--leaving' : '')}

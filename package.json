@@ -7,9 +7,10 @@
   "scripts": {
     "dev": "vite",
     "test": "vitest run --project unit",
+    "test:backend": "node --test backend/search.test.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "server": "node server/server.mjs",
+    "server": "node backend/server.mjs",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
