@@ -1,9 +1,10 @@
 import type { ScriptStep } from './ScriptedDriver';
 
 // The demo conversation for the Storybook story. Data only.
-// The first turn sets the pickup airport with the trip facts. The last turn
-// moves the pickup to Dubai, so the prices switch to AED. The last turn also
-// offers every car, so the slider is part of the demo.
+// The first turn sets the pickup airport with the trip facts. A middle turn
+// moves the pickup to Dubai, so the prices switch to AED, and offers every
+// car. The last turn confirms one car over voice, so the renter form comes up
+// first; the drafted agreement follows with the renter populated.
 export const exampleConversation: ScriptStep[] = [
   // mic on first, so the orb shows Listening between turns
   { delayMs: 0, event: { type: 'session.open' } },
@@ -78,5 +79,15 @@ export const exampleConversation: ScriptStep[] = [
   },
   { delayMs: 600, event: { type: 'agent.delta', text: 'Here is everything at Dubai International,' } },
   { delayMs: 700, event: { type: 'agent.delta', text: ' priced in dirhams. Swipe the cards to compare.' } },
+  { delayMs: 1600, event: { type: 'reply.done' } },
+  { delayMs: 2500, event: { type: 'user.speech.started' } },
+  { delayMs: 500, event: { type: 'user.delta', text: 'The X-Trail works for us. Book it.' } },
+  { delayMs: 600, event: { type: 'user.speech.stopped' } },
+  {
+    delayMs: 1200,
+    event: { type: 'tool.call', id: 't6', name: 'draft_agreement', args: { car_id: 'xtrail' } }
+  },
+  { delayMs: 600, event: { type: 'agent.delta', text: 'Almost done. Add your name and email,' } },
+  { delayMs: 700, event: { type: 'agent.delta', text: ' or continue with Google, and the agreement is yours.' } },
   { delayMs: 1600, event: { type: 'reply.done' } }
 ];

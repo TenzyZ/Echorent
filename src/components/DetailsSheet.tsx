@@ -44,6 +44,10 @@ export function DetailsSheet({
             <dt>Car</dt>
             <dd>{car?.name ?? 'Not set'}</dd>
           </div>
+          <div className="sheet__row">
+            <dt>Rate</dt>
+            <dd>{car ? `${car.currency} ${car.pricePerDay} / day` : 'Not set'}</dd>
+          </div>
         </dl>
         <button type="button" className="sheet__close" onClick={onClose}>
           Close

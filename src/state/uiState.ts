@@ -8,6 +8,9 @@ export interface Suggestion {
   carId: string;
   reason: string;
 }
+export interface Agreement {
+  carId: string;
+}
 export interface TranscriptLine {
   speaker: 'user' | 'agent';
   text: string;
@@ -19,6 +22,8 @@ export interface UIState {
   micOn: boolean;
   trip: TripIntent;
   cards: Suggestion[];
+  agreement: Agreement | null;
+  submitted: boolean;
   detailsOpen: boolean;
   detailsCarId: string | null;
   line: TranscriptLine | null;
@@ -30,6 +35,8 @@ export const initialState: UIState = {
   micOn: false,
   trip: {},
   cards: [],
+  agreement: null,
+  submitted: false,
   detailsOpen: false,
   detailsCarId: null,
   line: null,
@@ -53,6 +60,7 @@ export type UIEvent =
   | { type: 'ui.card.dismiss'; carId?: string }
   | { type: 'ui.details.open'; carId?: string }
   | { type: 'ui.details.close' }
+  | { type: 'ui.agreement.submit' }
   | { type: 'ui.end' };
 
 export function reduce(state: UIState, event: UIEvent): UIState {
@@ -95,7 +103,12 @@ export function reduce(state: UIState, event: UIEvent): UIState {
           if (cards.some((c) => c.carId === carId)) continue;
           cards.push({ carId, reason: String((entry as Record<string, unknown>)?.reason ?? '') });
         }
-        return { ...state, cards };
+        // New suggestions end any drafted agreement.
+        return { ...state, cards, agreement: null };
+      }
+      if (event.name === 'draft_agreement') {
+        if (typeof event.args.car_id !== 'string' || !event.args.car_id) return state;
+        return { ...state, agreement: { carId: event.args.car_id } };
       }
       return state;
     case 'session.closed':
@@ -119,6 +132,9 @@ export function reduce(state: UIState, event: UIEvent): UIState {
       };
     case 'ui.details.close':
       return { ...state, detailsOpen: false };
+    case 'ui.agreement.submit':
+      // The stage is done: no cards, no agreement, the orb takes over.
+      return { ...state, cards: [], agreement: null, submitted: true };
     case 'ui.end':
       return { ...state, ended: true, micOn: false, phase: 'idle', line: null };
   }

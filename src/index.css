@@ -91,14 +91,17 @@ input { caret-color: var(--champagne); }
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--champagne-soft) transparent;
+  scrollbar-width: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   margin-top: auto;
   padding: 24px 24px 0;
+}
+
+.hero::-webkit-scrollbar {
+  display: none;
 }
 
 .hero__title {
@@ -276,6 +279,261 @@ input { caret-color: var(--champagne); }
   text-underline-offset: 4px;
 }
 
+/* Agreement flow — replaces the car cards once the agent drafts the deal.
+   Compact on purpose: everything must fit one screen, no scrolling. */
+.agreement, .renter {
+  width: min(100%, 400px);
+  margin-top: 16px;
+  padding: 14px;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  animation: rise-in 240ms ease-out;
+}
+
+.agreement--leaving {
+  animation: form-out 320ms ease-in forwards;
+  pointer-events: none;
+}
+
+.agreement__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.agreement__title,
+.renter__title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.agreement__status {
+  font-size: 11px;
+  color: var(--champagne);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--champagne-tint);
+  border: 1px solid var(--champagne-soft);
+}
+
+.agreement__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.agreement .card__art {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+.agreement__name {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.agreement__meta {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.agreement__label {
+  flex: none;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.agreement__renter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.agreement__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.agreement__avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--champagne-tint);
+  color: var(--champagne);
+  font-family: var(--serif);
+  font-size: 13px;
+}
+
+.agreement__who {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.agreement__username {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agreement__usermail {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agreement__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.agreement__submit {
+  flex: none;
+  min-height: 38px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.agreement__submit:disabled { opacity: .35; cursor: not-allowed; }
+.agreement__submit:active { transform: scale(.98); }
+
+/* Renter form — the first step, before the drafted agreement */
+.renter__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.renter__context {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.renter__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.renter__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.renter__label {
+  flex: none;
+  width: 44px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.renter__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.renter__input:focus {
+  outline: none;
+  border-color: var(--champagne);
+  box-shadow: 0 0 0 2px var(--champagne-tint);
+}
+
+.renter__or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.renter__or::before,
+.renter__or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.renter__google {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: var(--ivory);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: border-color 180ms ease, transform 180ms ease;
+}
+
+.renter__google:active { transform: scale(.98); }
+
+.renter__submit {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.renter__submit:disabled { opacity: .35; cursor: not-allowed; }
+.renter__submit:active { transform: scale(.98); }
+
 /* Transcript strip — one line, edge fades, slow pan on overflow */
 .strip {
   flex: none;
@@ -404,6 +662,7 @@ input { caret-color: var(--champagne); }
 [data-phase='speaking'] .orb-zone__label { color: var(--champagne); }
 .orb-zone[data-paused='true'] .orb * { animation-play-state: paused; }
 .stage:has(.card) .orb-zone { --orb-size: 140px; padding-top: 24px; gap: 18px; }
+.stage:has(.agreement) .orb-zone, .stage:has(.renter) .orb-zone { --orb-size: 120px; padding-top: 14px; gap: 12px; }
 .stage:has(.card) .hero__title { font-size: clamp(30px, 4vw, 42px); }
 
 /* Dock — never moves */
@@ -462,6 +721,7 @@ input { caret-color: var(--champagne); }
 .dock button:active { transform: scale(.94); }
 @media (hover: hover) {
   .dock__key:hover, .topbar__menu:hover { background: var(--champagne-tint); color: var(--ink); }
+  .renter__google:hover { border-color: var(--champagne); }
   .dock__end:hover { background: #a9443810; color: var(--danger); }
   .dock__mic:hover { background: var(--champagne); }
   .card__details:hover, .sheet__close:hover { color: var(--champagne); }
@@ -602,6 +862,14 @@ input { caret-color: var(--champagne); }
   }
 }
 
+@keyframes form-out {
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(.97);
+    filter: blur(3px);
+  }
+}
+
 @keyframes slide-up {
   from {
     opacity: 0;
@@ -652,7 +920,7 @@ input { caret-color: var(--champagne); }
   .orb-zone { --orb-size: clamp(180px, 27vh, 230px); padding-top: 34px; }
   .dock-zone { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
   .card { padding: 16px; }
-  .card__main { flex-wrap: wrap; }
+  .card__main, .agreement__main { flex-wrap: wrap; }
   .card__art { display: none; }
   .card__foot { align-items: center; }
 }
@@ -660,12 +928,12 @@ input { caret-color: var(--champagne); }
   .topbar { padding-block: 12px; }
   .hero { padding-top: 12px; }
   .orb-zone { --orb-size: 160px; padding-top: 22px; gap: 16px; }
-  .stage:has(.card) .orb-zone { --orb-size: 90px; padding-top: 16px; gap: 12px; }
+  .stage:has(.card) .orb-zone, .stage:has(.agreement) .orb-zone, .stage:has(.renter) .orb-zone { --orb-size: 90px; padding-top: 16px; gap: 12px; }
   .strip { margin-bottom: 12px; }
   .dock-zone { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .orb *, .card, .keyboard, .sheet, .strip__text--pan { animation: none; }
+  .orb *, .card, .keyboard, .sheet, .strip__text--pan, .agreement, .renter { animation: none; }
   .strip { overflow-x: auto; justify-content: flex-start; mask-image: none; -webkit-mask-image: none; }
   .dock button:active { transform: none; }
 }

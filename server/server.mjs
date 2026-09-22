@@ -15,7 +15,29 @@ const locations = JSON.parse(
 createServer((req, res) => {
   res.setHeader('content-type', 'application/json');
   const [path, query] = (req.url ?? '').split('?');
-  if (path === '/api/cars') {
+  if (path === '/api/agreement' && req.method === 'POST') {
+    // The real backend stores the submitted draft and returns a reference.
+    // This stub shows that request and response shape.
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => {
+      let data = {};
+      try {
+        data = JSON.parse(body || '{}');
+      } catch {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: 'invalid json' }));
+        return;
+      }
+      if (!data.carId || !data.renter?.name || !data.renter?.email) {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: 'carId and renter name and email are required' }));
+        return;
+      }
+      const reference = `ECHO-${Math.floor(1000 + Math.random() * 9000)}`;
+      res.end(JSON.stringify({ status: 'received', reference }));
+    });
+  } else if (path === '/api/cars') {
     const airport = new URLSearchParams(query).get('airport');
     if (!airport) {
       res.statusCode = 400;

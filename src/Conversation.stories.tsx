@@ -13,7 +13,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 // The stage autostarts the script: greeting, family car at Changi, cheaper
-// swap, then a move to Dubai that reprices every card in AED.
+// swap, a move to Dubai that reprices every card in AED, then a spoken
+// confirm that brings up the renter form; the drafted agreement follows.
 export const ExampleConversation: Story = {
   name: 'Example conversation',
   parameters: { layout: 'fullscreen' },

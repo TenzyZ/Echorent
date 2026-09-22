@@ -27,6 +27,13 @@ export function useConversation(makeDriver: () => ConversationDriver) {
     dismissCard: (carId: string) => dispatch({ type: 'ui.card.dismiss', carId }),
     openDetails: (carId: string) => dispatch({ type: 'ui.details.open', carId }),
     closeDetails: () => dispatch({ type: 'ui.details.close' }),
+    clearAgreement: () => dispatch({ type: 'ui.agreement.submit' }),
+    say: (text: string) => {
+      // An empty user line first, so the agent reply starts a fresh line.
+      dispatch({ type: 'user.delta', text: '' });
+      dispatch({ type: 'agent.delta', text });
+      dispatch({ type: 'reply.done' });
+    },
     end: () => {
       dispatch({ type: 'ui.end' });
       driverRef.current?.stop();

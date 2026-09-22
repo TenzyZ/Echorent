@@ -8,6 +8,8 @@ describe('initialState', () => {
       micOn: false,
       trip: {},
       cards: [],
+      agreement: null,
+      submitted: false,
       detailsOpen: false,
       detailsCarId: null,
       line: null,
@@ -186,6 +188,44 @@ describe('reduce', () => {
     expect(
       reduce(initialState, { type: 'tool.call', id: 't', name: 'suggest_cars', args: { cars: 'vezel' } })
     ).toBe(initialState);
+  });
+
+  it('draft_agreement records the agreed car, and a later suggest_cars ends it', () => {
+    let s = reduce(initialState, {
+      type: 'tool.call',
+      id: 't',
+      name: 'draft_agreement',
+      args: { car_id: 'xtrail' }
+    });
+    expect(s.agreement).toEqual({ carId: 'xtrail' });
+    s = reduce(s, {
+      type: 'tool.call',
+      id: 't',
+      name: 'suggest_cars',
+      args: { cars: [{ car_id: 'corolla', reason: 'r' }] }
+    });
+    expect(s.agreement).toBeNull();
+  });
+
+  it('draft_agreement without a car id changes nothing', () => {
+    expect(reduce(initialState, { type: 'tool.call', id: 't', name: 'draft_agreement', args: {} })).toBe(initialState);
+  });
+
+  it('ui.agreement.submit clears the stage and marks it submitted', () => {
+    let s = reduce(initialState, {
+      type: 'tool.call',
+      id: 't',
+      name: 'draft_agreement',
+      args: { car_id: 'xtrail' }
+    });
+    s = reduce(s, {
+      type: 'tool.call',
+      id: 't',
+      name: 'suggest_cars',
+      args: { cars: [{ car_id: 'corolla', reason: 'r' }] }
+    });
+    s = reduce(s, { type: 'ui.agreement.submit' });
+    expect(s).toEqual({ ...initialState, submitted: true });
   });
 
   it('an unknown tool call changes nothing', () => {
