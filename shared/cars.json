@@ -1,0 +1,66 @@
+{
+  "SIN": [
+    {
+      "id": "corolla",
+      "name": "Toyota Corolla",
+      "category": "Economy",
+      "transmission": "Automatic",
+      "seats": 5,
+      "bags": 2,
+      "pricePerDay": 60,
+      "currency": "SGD"
+    },
+    {
+      "id": "vezel",
+      "name": "Honda Vezel",
+      "category": "Compact SUV",
+      "transmission": "Automatic",
+      "seats": 5,
+      "bags": 3,
+      "pricePerDay": 85,
+      "currency": "SGD"
+    },
+    {
+      "id": "model3",
+      "name": "Tesla Model 3",
+      "category": "Electric",
+      "transmission": "Automatic",
+      "seats": 5,
+      "bags": 2,
+      "pricePerDay": 120,
+      "currency": "SGD"
+    }
+  ],
+  "DXB": [
+    {
+      "id": "corolla",
+      "name": "Toyota Corolla",
+      "category": "Economy",
+      "transmission": "Automatic",
+      "seats": 5,
+      "bags": 2,
+      "pricePerDay": 165,
+      "currency": "AED"
+    },
+    {
+      "id": "vezel",
+      "name": "Honda Vezel",
+      "category": "Compact SUV",
+      "transmission": "Automatic",
+      "seats": 5,
+      "bags": 3,
+      "pricePerDay": 235,
+      "currency": "AED"
+    },
+    {
+      "id": "model3",
+      "name": "Tesla Model 3",
+      "category": "Electric",
+      "transmission": "Automatic",
+      "seats": 5,
+      "bags": 2,
+      "pricePerDay": 330,
+      "currency": "AED"
+    }
+  ]
+}

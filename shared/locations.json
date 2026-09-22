@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SIN",
+    "name": "Singapore Changi Airport",
+    "currency": "SGD"
+  },
+  {
+    "code": "DXB",
+    "name": "Dubai International Airport",
+    "currency": "AED"
+  }
+]
