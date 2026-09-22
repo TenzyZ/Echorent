@@ -6,6 +6,8 @@ This document is the contract between the frontend and the backend. Seng owns th
 
 The user describes a trip by voice. The agent understands the trip. The agent offers one or more cars. The UI shows the cars in a slider. The UI shows the current understanding.
 
+The user confirms one car by voice. The agent drafts the agreement for this car. The UI collects the renter name and email. The UI shows the agreement draft with the renter. The user submits the draft to the backend. The backend answers with a reference.
+
 In this document, the client is the frontend on the WebSocket. The server is the AssemblyAI Voice Agent API. The protocol below matches the published AssemblyAI documentation.
 
 ## Endpoints
@@ -60,6 +62,47 @@ If the backend cannot create a token, it returns a status other than 200. The bo
 ```
 
 `error` holds a short description of the problem. This error shape matches the stub API in `server/server.mjs`.
+
+### `POST /api/agreement`
+
+Receives one submitted agreement draft. The client sends this request when the user selects "Submit" on the agreement draft.
+
+Request body:
+
+```json
+{
+  "airport": "DXB",
+  "dates": "This weekend",
+  "carId": "xtrail",
+  "renter": { "name": "Amirah Tan", "email": "amirah.tan@gmail.com" }
+}
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `airport` | string, optional | the pickup location, one `code` from `GET /api/locations` |
+| `dates` | string, optional | the dates of the trip, as free text from the conversation |
+| `carId` | string, required | the `id` of the confirmed car from `GET /api/cars` |
+| `renter.name` | string, required | the name of the renter |
+| `renter.email` | string, required | the email address of the renter |
+
+The field is `carId` on HTTP. The same field is `car_id` in the tools on the WebSocket.
+
+The request has no price field. The backend reads the price for `carId` from its own catalog. The backend must not trust a price from the client.
+
+Response, status 200:
+
+```json
+{
+  "status": "received",
+  "reference": "ECHO-1234"
+}
+```
+
+- `status` is always `"received"`.
+- `reference` identifies the submission. The backend creates this value.
+
+The request returns status 400 when the body is not valid JSON. It also returns status 400 when `carId`, `renter.name`, or `renter.email` is missing. The error body uses the error shape from `GET /api/voice/token`.
 
 ## WebSocket session
 
@@ -152,7 +195,17 @@ Purpose: show a set of car cards.
 | `cars[].car_id` | string | the `id` of a car from `GET /api/cars` |
 | `cars[].reason` | string | one sentence that explains the fit |
 
-Client obligation: the client replaces the current card set with this set. The UI shows one card at a time in a slider. The user swipes right for the next card.
+Client obligation: the client replaces the current card set with this set. The UI shows one card at a time in a slider. The user swipes right for the next card. A new card set ends a drafted agreement on the client.
+
+### `draft_agreement`
+
+Purpose: draft the rental agreement for the car that the user confirmed.
+
+| Argument | Type | Meaning |
+| --- | --- | --- |
+| `car_id` | string, required | the `id` of the confirmed car from `GET /api/cars` |
+
+Client obligation: the client shows the renter form in place of the cards. The user types a name and an email, or selects the Google button. The Google button is a stub in this demo. The client then shows the agreement draft with the renter. The user opens the full terms with "View details". The user submits the draft with "Submit".
 
 ## Barge-in
 
@@ -182,3 +235,5 @@ The UI renders transcript text with `dir="auto"`.
 | Question | Status | Effect |
 | --- | --- | --- |
 | Can the stored agent hold tools of `type: "function"` that emit `tool.call` on the socket? Or must the client declare them in `session.tools` after `session.ready`? | Open | If the stored agent cannot hold function tools, `GET /api/voice/token` also returns the tool manifest and the client sends a second `session.update` with `session.tools`. |
+| The `dates` field arrives as free text. The backend cannot compute a total price from it. | Open | If a total price is necessary, the agent sends structured dates in `update_trip` before `draft_agreement`. The UI shows the value as text in both cases. |
+| The renter identity has no verification. The Google button on the renter form is a client stub. | Open | For a verified flow, the client sends a Google ID token with the submission. The backend verifies this token. |
