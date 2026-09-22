@@ -34,6 +34,8 @@ export class ScriptedDriver implements ConversationDriver {
     this.onEvent?.({ type: 'ui.text.submit', text });
   }
 
+  notify(_text: string): void {}
+
   private clearTimers(): void {
     for (const id of this.timers) clearTimeout(id);
     this.timers = [];

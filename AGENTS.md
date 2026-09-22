@@ -16,11 +16,11 @@ Read PROJECT.md before substantial implementation work.
 
 ## Current phase
 
-Frontend + Voice Integration v1.
+Reservation Request + Email Acknowledgement v1.
 
 Read `PROJECT.md` for the current product and phase scope.
 
-Do not expand this phase.
+Do not expand this phase into approval or a confirmed rental.
 
 ## Sources of truth
 
@@ -43,14 +43,8 @@ Frontend visual implementation:
 
 Important:
 
-`docs/backend-contract.md` was imported from Seng's UI snapshot and is stale
-at the start of Frontend + Voice Integration v1.
-
-Do not treat it as authoritative until this phase rewrites it to the approved
-Integration v1 contract.
-
-Until then, the canonical backend files, `PROJECT.md`, and the explicitly
-approved Integration v1 implementation plan take precedence over that file.
+`docs/backend-contract.md` describes the current browser/backend contract.
+Canonical backend code remains the source of business truth.
 
 ## Hard boundaries
 
@@ -62,15 +56,19 @@ approved Integration v1 implementation plan take precedence over that file.
 - Do not fabricate vehicles, prices, IDs, booking references, or status.
 - Do not expose ASSEMBLYAI_API_KEY or ECHORENT_TOOL_SECRET to browser code.
 - Do not hardcode the AssemblyAI agent ID.
-- Do not activate booking, reservation, agreement submission, email,
-  Google authentication, database, approval, payment, or live inventory.
+- Reservation requests are pending only. No approval/rejection, modification,
+  cancellation, agreement submission, payment, Google authentication, database,
+  SMS, or live inventory.
+- Typed email is sent only to the reservation endpoint, never to Shen.
+- Do not expose RESEND_API_KEY, ECHORENT_EMAIL_FROM, or ECHORENT_NOTIFY_TO to browser code.
 - RenterForm and AgreementCard may remain as visual/Storybook components
-  but are unreachable from the Integration v1 runtime.
+  but are unreachable from this runtime.
 - Preserve Seng's visual design unless integration requires a functional fix.
 
 ## Search architecture
 
-search_cars is the only runtime search tool in Integration v1.
+search_cars remains the only search tool. select_car is client-local and only
+selects a car from the latest released successful search result.
 
 Flow:
 
@@ -93,11 +91,14 @@ Browser-facing routes for this phase:
 
 GET /api/voice/token
 POST /api/search_cars
+POST /api/reservation_requests
 
 POST /api/search_cars must call the same canonical searchCars()
 implementation used by the backend.
 
 The permanent AssemblyAI API key remains server-side.
+The reservation route re-runs searchCars(), persists pending requests in JSONL,
+and attempts internal and traveller emails. It never confirms a rental.
 
 ## Frontend adapter
 
@@ -122,14 +123,14 @@ Backend IDs and values win over old frontend mocks.
 - Handle session.error as a real failure.
 - Do not fabricate fallback success.
 - Pending tool results must never survive an interrupted/ended turn.
-- Preserve Shen's prompt unless explicitly approved.
+- Keep Shen's prompt at most 4000 characters and preserve rental-field rules.
 - Do not publish/update the stored agent without Tenzy's explicit approval.
 
 ## Git workflow
 
 One phase → one branch → one PR.
 
-Current integration branch must remain based on canonical main.
+The current phase branch must remain based on canonical main.
 
 Do not merge the unrelated UI branch into this branch.
 
@@ -146,7 +147,7 @@ authorizes that step.
 
 Before reporting implementation complete, run:
 
-node --test backend/search.test.mjs
+npm run test:backend
 npm test
 npm run build
 npm run build-storybook

@@ -1,4 +1,5 @@
 import { adaptBackendCars, type BackendSearchResult, type Car } from '../cars';
+import type { ReservationResult, ReservationSuccess, ReservationConflict } from '../reservation';
 
 export interface TripIntent {
   airport?: string;
@@ -15,6 +16,12 @@ export interface TranscriptLine {
 
 export type Phase = 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking' | 'error' | 'ended';
 
+export type RequestState =
+  | { phase: 'awaiting_email' | 'failed'; carId: string; error?: string }
+  | { phase: 'submitting'; carId: string; submissionId: number }
+  | { phase: 'pending'; carId: string; result: ReservationSuccess }
+  | { phase: 'conflict'; carId: string; result: ReservationConflict };
+
 export interface UIState {
   phase: Phase;
   micOn: boolean;
@@ -26,6 +33,8 @@ export interface UIState {
   line: TranscriptLine | null;
   error: string | null;
   ended: boolean;
+  currentSearch: { args: Record<string, unknown>; result: Extract<BackendSearchResult, { ok: true }> } | null;
+  request: RequestState | null;
 }
 
 export const initialState: UIState = {
@@ -38,7 +47,9 @@ export const initialState: UIState = {
   detailsCarId: null,
   line: null,
   error: null,
-  ended: false
+  ended: false,
+  currentSearch: null,
+  request: null
 };
 
 export type UIEvent =
@@ -56,7 +67,12 @@ export type UIEvent =
   | { type: 'reply.interrupted' }
   | { type: 'reply.done' }
   | { type: 'tool.call'; id: string; name: string; args: Record<string, unknown> }
-  | { type: 'search.result'; result: BackendSearchResult }
+  | { type: 'search.result'; args: Record<string, unknown>; result: BackendSearchResult }
+  | { type: 'car.selected'; carId: string }
+  | { type: 'ui.request.submit'; carId: string; submissionId: number }
+  | { type: 'ui.request.back' }
+  | { type: 'reservation.result'; carId: string; submissionId: number; result: ReservationResult }
+  | { type: 'reservation.failed'; carId: string; submissionId: number; expired?: boolean }
   | { type: 'ui.text.submit'; text: string }
   | { type: 'ui.card.dismiss'; carId?: string }
   | { type: 'ui.details.open'; carId?: string }
@@ -71,7 +87,7 @@ function appendDelta(current: string, delta: string): string {
 }
 
 export function reduce(state: UIState, event: UIEvent): UIState {
-  if (state.ended) return state;
+  if (state.ended && event.type !== 'reservation.result' && event.type !== 'reservation.failed') return state;
   switch (event.type) {
     case 'session.connecting':
       return { ...state, phase: 'connecting', error: null };
@@ -112,12 +128,16 @@ export function reduce(state: UIState, event: UIEvent): UIState {
     case 'reply.interrupted':
     case 'reply.done':
       return { ...state, phase: state.micOn ? 'listening' : 'idle' };
-    case 'search.result':
+    case 'search.result': {
+      // An in-flight submission may already exist on the backend; keep it so its result still renders.
+      const request = state.request?.phase === 'submitting' ? state.request : null;
       if (!event.result.ok) {
-        return { ...state, cards: [], notice: null, detailsOpen: false, detailsCarId: null };
+        return { ...state, cards: [], notice: null, detailsOpen: false, detailsCarId: null, currentSearch: null, request };
       }
       return {
         ...state,
+        currentSearch: { args: event.args, result: event.result },
+        request,
         trip: {
           airport: event.result.rental.airport,
           airportName: event.result.rental.airport_name,
@@ -130,6 +150,28 @@ export function reduce(state: UIState, event: UIEvent): UIState {
         detailsOpen: false,
         detailsCarId: null
       };
+    }
+    case 'car.selected':
+      if (state.request?.phase === 'submitting'
+        || !state.currentSearch?.result.cars.some(({ car_id }) => car_id === event.carId)) return state;
+      return { ...state, request: { phase: 'awaiting_email', carId: event.carId }, detailsOpen: false };
+    case 'ui.request.submit':
+      if (state.request?.carId !== event.carId || !['awaiting_email', 'failed'].includes(state.request.phase)) return state;
+      return { ...state, request: { phase: 'submitting', carId: event.carId, submissionId: event.submissionId } };
+    case 'ui.request.back':
+      return state.request?.phase === 'submitting' ? state : { ...state, request: null };
+    case 'reservation.result':
+      if (state.request?.phase !== 'submitting' || state.request.carId !== event.carId
+        || state.request.submissionId !== event.submissionId) return state;
+      return { ...state, request: event.result.ok
+        ? { phase: 'pending', carId: event.carId, result: event.result }
+        : { phase: 'conflict', carId: event.carId, result: event.result } };
+    case 'reservation.failed':
+      if (state.request?.phase !== 'submitting' || state.request.carId !== event.carId
+        || state.request.submissionId !== event.submissionId) return state;
+      return { ...state, request: { phase: 'failed', carId: event.carId, error: event.expired
+        ? 'This search has changed since you reviewed it. Please search again.'
+        : 'Request could not be completed. Please try again.' } };
     case 'tool.call':
       return state;
     case 'ui.text.submit':

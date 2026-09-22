@@ -1,10 +1,10 @@
-# Frontend + Voice Integration v1 contract
+# Reservation Request + Email Acknowledgement v1 contract
 
 ## Runtime boundary
 
 EchoRent supports demo searches at DXB and SIN. The browser transports tool arguments and renders results; `backend/search.mjs` owns validation, eligibility, pricing, ordering, and inventory selection.
 
-The only runtime tool is the client-handled `search_cars` stored-agent tool:
+The runtime search tool is the client-handled `search_cars` stored-agent tool:
 
 ```text
 tool.call(search_cars)
@@ -72,6 +72,18 @@ For `search_cars`, valid canonical response text is preserved exactly for `tool.
 
 Tool results are held while an agent reply is in flight, released in call order after normal `reply.done`, and dropped after interrupted `reply.done`. This ordering remains subject to the authorized live browser verification.
 
+`select_car` is a client-local tool. It validates `car_id` against the latest released successful search result, resolves through the same ToolResultGate, and emits selection only on release. It does not fetch or create a request. The UI retains that search's exact arguments and authoritative result. Email is typed into a dedicated form and never enters a conversation message or tool argument.
+
+## `POST /api/reservation_requests`
+
+The traveller reviews the selected car, airport, pickup, and return before pressing Send request. The browser sends `{ "search": <exact released search_cars arguments>, "car_id": "...", "email": "...", "reviewed_rental": <that released result's rental> }`. No other top-level fields are accepted, and `reviewed_rental` must have the exact `rental` shape. PUT/PATCH return `405 method_not_allowed`.
+
+The backend re-runs `searchCars(search)` and verifies the returned car. If the canonical `rental` (airport, airport name, pickup and return date, weekday, and time, driver age) differs from `reviewed_rental`, for example because a relative date such as `tomorrow` resolves differently after airport-local midnight, it returns `409 search_expired` with nothing persisted and no email sent; the traveller must search again. It then validates email and server email configuration, then makes one serialized durable decision. A new request is appended to `reservation-requests.jsonl` with literal `status: "pending"` before any email attempt. The result includes the authoritative request and separate `notifications.internal` and `notifications.traveller` statuses (`sent` or `failed`). Notification failure does not erase a saved request. A failed notification line in the JSONL store, and the server's request log, carry a PII-safe `error` diagnostic (`provider`, `operation`, HTTP `status`, Resend error `code`, sanitized `message`, or `timeout`/`network_error`); it never reaches the browser. The traveller UI and Shen report only the traveller acknowledgement status. Missing configuration returns `503 reservations_unavailable` before persistence.
+
+For the same normalized email, exact car, airport, canonical pickup/return, and driver age replay the original pending request and ID. Only roles lacking a durable `sent` record are retried with the same `${request_id}/<role>` idempotency key. Same-airport overlapping intervals that are not exact replay return `409 existing_request`, with only `{ "status": "pending" }` under `existing_request`. The unauthenticated conflict response contains no persisted request details. Touching intervals, non-overlapping intervals, different emails, and cross-airport rentals may create separate requests.
+
+JSONL is local demo persistence for one process. The index is rebuilt from disk after restart and corrupt data fails closed. Decisions serialize through email delivery. Resend currently keeps idempotency keys for 24 hours; a provider acceptance followed by a crash before the sent record is appended can require provider idempotency on retry.
+
 ## Deferred
 
-Booking, reservation requests, agreement submission, renter verification, Google authentication, email, database persistence, human approval, payment, live provider inventory, and additional airports are not active. `RenterForm` and `AgreementCard` remain Storybook-only visual components.
+Confirmation, approval/rejection, modification, cancellation, agreement submission, Google authentication, database persistence, SMS, payment, live provider inventory, and additional airports are not active. `RenterForm` and `AgreementCard` remain Storybook-only visual components. No model-facing create, modify, cancel, or generic send_email tool is active.

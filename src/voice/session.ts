@@ -28,7 +28,8 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 interface ToolOutcome {
-  search?: BackendSearchResult;
+  search?: { result: BackendSearchResult; args: Record<string, unknown> };
+  selection?: { carId: string; revision: number };
   error?: string;
 }
 
@@ -54,6 +55,8 @@ export class VoiceSession implements ConversationDriver {
   private gate = new ToolResultGate();
   private searches = new Map<string, AbortController>();
   private outcomes = new Map<string, ToolOutcome>();
+  private lastReleasedSearch: { args: Record<string, unknown>; result: Extract<BackendSearchResult, { ok: true }> } | null = null;
+  private searchRevision = 0;
 
   // Navigation must still end the session synchronously; a bare close stays billable for 30s.
   private readonly onPageHide = (): void => {
@@ -88,6 +91,13 @@ export class VoiceSession implements ConversationDriver {
       return;
     }
     this.sendTextNow(text);
+  }
+
+  notify(text: string): void {
+    if (!this.started || !this.ready || this.ending || this.finished || !text) return;
+    if (this.send({ type: 'conversation.message', role: 'system', content: text })) {
+      this.send({ type: 'reply.create' });
+    }
   }
 
   private async connect(): Promise<void> {
@@ -184,6 +194,7 @@ export class VoiceSession implements ConversationDriver {
           this.ready = false;
           this.gate.reset();
           this.dropSearches();
+          this.lastReleasedSearch = null;
           this.stopPlayback();
           this.cleanup();
           this.finishClosed();
@@ -237,6 +248,17 @@ export class VoiceSession implements ConversationDriver {
 
   private handleToolCall(callId: string, name: string, args: Record<string, unknown>): void {
     if (!this.gate.addCall(callId)) return;
+    if (name === 'select_car') {
+      const carId = args.car_id;
+      if (Object.keys(args).length === 1 && typeof carId === 'string'
+        && this.lastReleasedSearch?.result.cars.some(({ car_id }) => car_id === carId)) {
+        this.outcomes.set(callId, { selection: { carId, revision: this.searchRevision } });
+        this.release(this.gate.resolve(callId, JSON.stringify({ ok: true, car_id: carId })));
+      } else {
+        this.release(this.gate.resolve(callId, JSON.stringify({ error: 'invalid_selection' }), true));
+      }
+      return;
+    }
     if (name !== 'search_cars') {
       this.release(this.gate.resolve(callId, JSON.stringify({ error: 'unknown_tool' }), true));
       return;
@@ -260,7 +282,7 @@ export class VoiceSession implements ConversationDriver {
       if (controller.signal.reason === 'dropped') return;
       const parsed: unknown = JSON.parse(body);
       if (!isBackendSearchResult(parsed)) throw new Error('invalid backend response');
-      this.outcomes.set(callId, { search: parsed });
+      this.outcomes.set(callId, { search: { result: parsed, args: { ...args } } });
       this.release(this.gate.resolve(callId, body));
     } catch {
       if (controller.signal.reason === 'dropped') return;
@@ -274,13 +296,23 @@ export class VoiceSession implements ConversationDriver {
 
   private release(results: ReleasedToolResult[]): void {
     for (const result of results) {
-      if (!this.send({ type: 'tool.result', call_id: result.callId, result: result.result, is_error: result.isError })) {
+      const outcome = this.outcomes.get(result.callId);
+      const selectionValid = !outcome?.selection || (outcome.selection.revision === this.searchRevision
+        && this.lastReleasedSearch?.result.cars.some(({ car_id }) => car_id === outcome.selection?.carId));
+      if (!this.send({ type: 'tool.result', call_id: result.callId,
+        result: selectionValid ? result.result : JSON.stringify({ error: 'stale_selection' }),
+        is_error: result.isError || !selectionValid })) {
         this.outcomes.delete(result.callId);
         this.fail('Voice connection closed unexpectedly.');
         return;
       }
-      const outcome = this.outcomes.get(result.callId);
-      if (outcome?.search) this.emit({ type: 'search.result', result: outcome.search });
+      if (outcome?.search) {
+        this.searchRevision += 1;
+        this.lastReleasedSearch = outcome.search.result.ok
+          ? { args: outcome.search.args, result: outcome.search.result } : null;
+        this.emit({ type: 'search.result', ...outcome.search });
+      }
+      if (outcome?.selection && selectionValid) this.emit({ type: 'car.selected', carId: outcome.selection.carId });
       if (outcome?.error) {
         this.setMic(false);
         this.emit({ type: 'session.error', message: outcome.error });
@@ -324,6 +356,7 @@ export class VoiceSession implements ConversationDriver {
     this.ready = false;
     this.gate.reset();
     this.dropSearches();
+    this.lastReleasedSearch = null;
     this.stopPlayback();
     this.pendingSamples = [];
 
@@ -348,6 +381,7 @@ export class VoiceSession implements ConversationDriver {
     this.ready = false;
     this.gate.reset();
     this.dropSearches();
+    this.lastReleasedSearch = null;
     this.stopPlayback();
     try {
       this.send({ type: 'session.end' });

@@ -534,6 +534,16 @@ input { caret-color: var(--champagne); }
 .renter__submit:disabled { opacity: .35; cursor: not-allowed; }
 .renter__submit:active { transform: scale(.98); }
 
+.request-summary { margin: 12px 0 0; padding: 10px 0; border-block: 1px solid var(--line); }
+.request-summary > div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 12px; }
+.request-summary dt { color: var(--muted); }
+.request-summary dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.request-error { margin: 0; color: var(--danger); font-size: 12px; }
+.request-status-text { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.request-back { display: block; margin: 10px auto 0; padding: 8px 12px; border: 0; background: transparent; color: var(--champagne); font: inherit; font-size: 12px; cursor: pointer; }
+.request-back:focus-visible { outline: 2px solid var(--champagne); outline-offset: 2px; }
+.request-back:disabled { opacity: .35; cursor: not-allowed; }
+
 /* Transcript strip — one line, edge fades, slow pan on overflow */
 .strip {
   flex: none;

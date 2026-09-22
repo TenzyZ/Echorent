@@ -465,7 +465,7 @@ describe("voice token route", () => {
   });
 });
 
-test("T20 canonical agent preserves Shen identity and exposes only search_cars", async () => {
+test("T20 canonical agent preserves Shen identity and exposes search_cars plus client-local select_car", async () => {
   const agentPath = fileURLToPath(new URL("../agents/echorent.jsonc", import.meta.url));
   const source = await readFile(agentPath, "utf8");
   const agent = JSON.parse(source.replace(/^\s*\/\/.*$/gm, ""));
@@ -489,8 +489,8 @@ test("T20 canonical agent preserves Shen identity and exposes only search_cars",
   assert.match(agent.system_prompt, /successful later search_cars result supersedes earlier validation errors/);
   assert.match(agent.system_prompt, /next Friday/);
   assert.match(agent.system_prompt, /no demo cars are available/);
-  assert.equal(agent.tools.length, 1);
-  const [tool] = agent.tools;
+  assert.equal(agent.tools.length, 2);
+  const [tool, select] = agent.tools;
   assert.equal(tool.name, "search_cars");
   assert.equal("http" in tool, false);
   assert.equal(tool.execution_mode, "hold");
@@ -509,7 +509,14 @@ test("T20 canonical agent preserves Shen identity and exposes only search_cars",
     assert.ok(examples.length > 0);
     assert.equal(examples.every((example) => expression.test(example)), true, field);
   }
-  assert.equal(agent.tools.some(({ name }) => /booking|reserv|state|get_car_details/i.test(name)), false);
+  assert.equal(select.name, "select_car");
+  assert.deepEqual(select.parameters.required, ["car_id"]);
+  assert.equal(select.execution_mode, "hold");
+  assert.equal(select.timeout_seconds, 10);
+  assert.equal("http" in select, false);
+  assert.match(agent.system_prompt, /TYPE their email on screen/);
+  assert.match(agent.system_prompt, /pending human review/);
+  assert.equal(agent.tools.some(({ name }) => /create|booking|reserv|modify|cancel|state|get_car_details/i.test(name)), false);
   assert.equal("input" in agent, false);
   assert.equal("llm" in agent, false);
 });
