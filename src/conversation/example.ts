@@ -27,12 +27,12 @@ export const exampleConversation: ScriptStep[] = [
       id: 't2',
       name: 'suggest_cars',
       args: {
-        cars: [{ car_id: 'vezel', reason: 'Fits your family of four with room for a stroller and three bags.' }]
+        cars: [{ car_id: 'hrv', reason: 'Fits your family of four with room for a stroller and three bags.' }]
       }
     }
   },
   { delayMs: 600, event: { type: 'agent.delta', text: 'For your family,' } },
-  { delayMs: 700, event: { type: 'agent.delta', text: ' the Honda Vezel gives you the room you need.' } },
+  { delayMs: 700, event: { type: 'agent.delta', text: ' the Honda HR-V gives you the room you need.' } },
   { delayMs: 1600, event: { type: 'reply.done' } },
   { delayMs: 2500, event: { type: 'user.speech.started' } },
   { delayMs: 500, event: { type: 'user.delta', text: 'Something cheaper?' } },
@@ -48,7 +48,7 @@ export const exampleConversation: ScriptStep[] = [
       }
     }
   },
-  { delayMs: 600, event: { type: 'agent.delta', text: 'The Toyota Corolla keeps five seats and costs less per day.' } },
+  { delayMs: 600, event: { type: 'agent.delta', text: 'The Toyota Corolla Altis keeps five seats and costs less per day.' } },
   { delayMs: 1800, event: { type: 'reply.done' } },
   { delayMs: 2500, event: { type: 'user.speech.started' } },
   { delayMs: 500, event: { type: 'user.delta', text: 'Plans changed. I fly into Dubai instead.' } },
@@ -70,8 +70,8 @@ export const exampleConversation: ScriptStep[] = [
       args: {
         cars: [
           { car_id: 'corolla', reason: 'The lowest daily rate.' },
-          { car_id: 'vezel', reason: 'The most room for luggage.' },
-          { car_id: 'model3', reason: 'Fully electric, same five seats.' }
+          { car_id: 'xtrail', reason: 'The most room for luggage.' },
+          { car_id: 'bmw3', reason: 'A premium sedan with the same five seats.' }
         ]
       }
     }

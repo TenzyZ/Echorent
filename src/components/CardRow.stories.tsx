@@ -11,7 +11,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Single: Story = {
   args: {
-    cards: [{ carId: 'vezel', reason: 'Fits your family of four with room for a stroller and three bags.' }],
+    cards: [{ carId: 'hrv', reason: 'Fits your family of four with room for a stroller and three bags.' }],
     airport: 'SIN',
     onDismiss: () => {},
     onOpenDetails: () => {}
@@ -27,8 +27,8 @@ export const Swipeable: Story = {
   args: {
     cards: [
       { carId: 'corolla', reason: 'The lowest daily rate.' },
-      { carId: 'vezel', reason: 'The most room for luggage.' },
-      { carId: 'model3', reason: 'Fully electric, same five seats.' }
+      { carId: 'hrv', reason: 'The most room for luggage.' },
+      { carId: 'bmw3', reason: 'A premium sedan with the same five seats.' }
     ],
     airport: 'SIN',
     onDismiss: () => {},

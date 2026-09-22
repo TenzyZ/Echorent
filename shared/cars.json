@@ -2,7 +2,7 @@
   "SIN": [
     {
       "id": "corolla",
-      "name": "Toyota Corolla",
+      "name": "Toyota Corolla Altis",
       "category": "Economy",
       "transmission": "Automatic",
       "seats": 5,
@@ -11,23 +11,23 @@
       "currency": "SGD"
     },
     {
-      "id": "vezel",
-      "name": "Honda Vezel",
+      "id": "hrv",
+      "name": "Honda HR-V",
       "category": "Compact SUV",
       "transmission": "Automatic",
       "seats": 5,
       "bags": 3,
-      "pricePerDay": 85,
+      "pricePerDay": 95,
       "currency": "SGD"
     },
     {
-      "id": "model3",
-      "name": "Tesla Model 3",
-      "category": "Electric",
+      "id": "bmw3",
+      "name": "BMW 3 Series",
+      "category": "Luxury Sedan",
       "transmission": "Automatic",
       "seats": 5,
       "bags": 2,
-      "pricePerDay": 120,
+      "pricePerDay": 160,
       "currency": "SGD"
     }
   ],
@@ -39,27 +39,27 @@
       "transmission": "Automatic",
       "seats": 5,
       "bags": 2,
-      "pricePerDay": 165,
+      "pricePerDay": 120,
       "currency": "AED"
     },
     {
-      "id": "vezel",
-      "name": "Honda Vezel",
+      "id": "xtrail",
+      "name": "Nissan X-Trail",
       "category": "Compact SUV",
       "transmission": "Automatic",
       "seats": 5,
       "bags": 3,
-      "pricePerDay": 235,
+      "pricePerDay": 210,
       "currency": "AED"
     },
     {
-      "id": "model3",
-      "name": "Tesla Model 3",
-      "category": "Electric",
+      "id": "bmw3",
+      "name": "BMW 3 Series",
+      "category": "Luxury Sedan",
       "transmission": "Automatic",
       "seats": 5,
       "bags": 2,
-      "pricePerDay": 330,
+      "pricePerDay": 320,
       "currency": "AED"
     }
   ]

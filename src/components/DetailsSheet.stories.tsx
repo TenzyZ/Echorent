@@ -12,7 +12,7 @@ type Story = StoryObj<typeof meta>;
 export const Open: Story = {
   args: {
     trip: { airport: 'SIN', dates: 'This weekend', passengers: 4, luggage: 3 },
-    carId: 'vezel',
+    carId: 'hrv',
     onClose: () => {}
   },
   render: (args) => (
@@ -26,7 +26,7 @@ export const Dubai: Story = {
   args: {
     ...Open.args,
     trip: { airport: 'DXB', dates: 'Next month', passengers: 2, luggage: 1 },
-    carId: 'model3'
+    carId: 'bmw3'
   },
   render: Open.render
 };

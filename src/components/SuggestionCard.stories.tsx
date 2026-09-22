@@ -9,10 +9,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Vezel: Story = {
+export const Hrv: Story = {
   args: {
     card: {
-      carId: 'vezel',
+      carId: 'hrv',
       reason: 'Fits your family of four with room for a stroller and three bags.'
     },
     airport: 'SIN',
@@ -28,8 +28,8 @@ export const Vezel: Story = {
 
 export const Dubai: Story = {
   args: {
-    ...Vezel.args,
+    ...Hrv.args,
     airport: 'DXB'
   },
-  render: Vezel.render
+  render: Hrv.render
 };
