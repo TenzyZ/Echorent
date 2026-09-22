@@ -11,8 +11,8 @@ function authorized(header, secret) {
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-function send(response, status, body) {
-  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+function send(response, status, body, headers = {}) {
+  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", ...headers });
   response.end(JSON.stringify(body));
 }
 
@@ -31,14 +31,50 @@ async function readJson(request) {
 
 export function createServer({
   secret = process.env.ECHORENT_TOOL_SECRET,
+  apiKey = process.env.ASSEMBLYAI_API_KEY,
+  agentId = process.env.AGENT_ID_ECHORENT,
   now = () => new Date(),
   cars = DEMO_INVENTORY,
+  fetchImpl = fetch,
+  tokenTimeoutMs = 5_000,
   logger = console.log,
 } = {}) {
   return createHttpServer(async (request, response) => {
-    if (request.url !== "/tools/search_cars") return send(response, 404, { error: "not_found" });
+    const path = request.url?.split("?", 1)[0];
+    if (path === "/api/voice/token") {
+      const noStore = { "Cache-Control": "no-store" };
+      if (request.method !== "GET") return send(response, 405, { error: "method_not_allowed" }, noStore);
+      if (!apiKey || !agentId) return send(response, 503, { error: "voice_unavailable" }, noStore);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), tokenTimeoutMs);
+      try {
+        const url = new URL("https://agents.assemblyai.com/v1/token");
+        url.searchParams.set("expires_in_seconds", "60");
+        url.searchParams.set("max_session_duration_seconds", "1800");
+        const upstream = await fetchImpl(url, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${apiKey}` },
+          signal: controller.signal,
+        });
+        if (!upstream.ok) throw new Error("token request failed");
+        const body = await upstream.json();
+        if (!body || typeof body.token !== "string" || !body.token) throw new Error("invalid token response");
+        return send(response, 200, { token: body.token, agent_id: agentId }, noStore);
+      } catch {
+        return send(response, 502, { error: "token_unavailable" }, noStore);
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    const isLegacySearch = path === "/tools/search_cars";
+    const isBrowserSearch = path === "/api/search_cars";
+    if (!isLegacySearch && !isBrowserSearch) return send(response, 404, { error: "not_found" });
     if (request.method !== "POST") return send(response, 405, { error: "method_not_allowed" });
-    if (!authorized(request.headers.authorization, secret)) return send(response, 401, { error: "unauthorized" });
+    if (isLegacySearch && !authorized(request.headers.authorization, secret)) {
+      return send(response, 401, { error: "unauthorized" });
+    }
 
     let rawArguments;
     try {
@@ -60,6 +96,7 @@ export function createServer({
     try {
       logger(JSON.stringify({
         timestamp: new Date().toISOString(),
+        route: path,
         raw_arguments: rawArguments,
         ok,
         error_codes: result && !ok ? result.errors.map(({ code }) => code) : [],
@@ -79,6 +116,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     process.exitCode = 1;
   } else {
     const port = Number(process.env.PORT || 3001);
-    createServer().listen(port, () => console.log(JSON.stringify({ event: "listening", port })));
+    createServer().listen(port, "127.0.0.1", () => console.log(JSON.stringify({ event: "listening", host: "127.0.0.1", port })));
   }
 }

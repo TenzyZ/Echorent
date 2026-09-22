@@ -1,0 +1,39 @@
+{
+  "name": "echorent",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "EchoRent — car rental UI. Same goal. Same cars. A great experience for travellers.",
+  "scripts": {
+    "dev": "vite",
+    "test": "vitest run --project unit",
+    "test:backend": "node --test backend/search.test.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "server": "node backend/server.mjs",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.9.0",
+    "vite": "^7.1.0",
+    "storybook": "^10.6.0",
+    "@storybook/react-vite": "^10.6.0",
+    "@chromatic-com/storybook": "latest",
+    "@storybook/addon-vitest": "^10.6.0",
+    "@storybook/addon-a11y": "^10.6.0",
+    "@storybook/addon-docs": "^10.6.0",
+    "@storybook/addon-mcp": "^10.6.0",
+    "vitest": "latest",
+    "playwright": "latest",
+    "@vitest/browser-playwright": "latest",
+    "@vitest/coverage-v8": "latest"
+  }
+}

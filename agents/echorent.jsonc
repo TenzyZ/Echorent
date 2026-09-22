@@ -1,5 +1,5 @@
 // Canonical EchoRent stored agent.
-// https://www.assemblyai.com/docs/voice-agents/voice-agent-api/tools/http-tools
+// https://www.assemblyai.com/docs/voice-agents/voice-agent-api/events-reference
 {
   "name": "EchoRent",
 
@@ -60,17 +60,7 @@
         "required": ["pickup_airport", "pickup_date", "pickup_time", "return_date", "return_time", "driver_age"]
       },
       "execution_mode": "hold",
-      "timeout_seconds": 10,
-      "http": {
-        "url": "${ECHORENT_TOOLS_URL}/tools/search_cars",
-        "http_method": "POST",
-        "headers": [
-          {
-            "name": "Authorization",
-            "value": "Bearer ${ECHORENT_TOOL_SECRET}"
-          }
-        ]
-      }
+      "timeout_seconds": 10
     }
   ]
 }
