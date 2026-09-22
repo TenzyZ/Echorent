@@ -1,32 +1,37 @@
 export type ClientMessage =
-  | { type: 'session.update'; session: { agent: { agent_id: string } } }
-  | { type: 'input_audio_buffer.append'; audio: string } // base64 PCM16 24kHz mono
-  | { type: 'input_audio_buffer.terminate' }
-  | { type: 'input_text.message'; text: string } // typed input from the keyboard
-  | { type: 'tool.result'; tool_call_id: string; output: string };
+  | { type: 'session.update'; session: { agent_id: string } }
+  | { type: 'input.audio'; audio: string } // base64 PCM16 24kHz mono
+  | { type: 'session.end' }
+  | { type: 'conversation.message'; role: 'user' | 'system'; content: string } // typed input
+  | { type: 'reply.create' }
+  | { type: 'tool.result'; call_id: string; result: string }; // result is a JSON string
 
 export type ServerMessage =
-  | { type: 'session.created'; session_id: string }
+  | { type: 'session.ready'; session_id: string }
+  | { type: 'session.ended' }
+  | { type: 'reply.started' }
   | { type: 'input.speech.started' }
   | { type: 'input.speech.stopped' }
   | { type: 'transcript.user.delta'; text: string } // FULL text so far — supersedes
-  | { type: 'transcript.agent.delta'; text: string } // incremental — appends
-  | { type: 'reply.audio'; audio: string } // base64 PCM16 24kHz mono
-  | { type: 'reply.done'; interrupted?: boolean }
-  | { type: 'tool.call'; tool_call_id: string; name: string; arguments: string } // arguments is a JSON string
-  | { type: 'error'; message: string };
+  | { type: 'transcript.agent.delta'; delta: string } // incremental — appends
+  | { type: 'reply.audio'; data: string } // base64 PCM16 24kHz mono
+  | { type: 'reply.done'; status: string } // "completed" or "interrupted"
+  | { type: 'tool.call'; call_id: string; name: string; arguments: Record<string, unknown> }
+  | { type: 'session.error'; code?: string; message: string };
 
 // Required string fields per known server message type.
 const requiredStrings: Record<string, string[]> = {
-  'session.created': ['session_id'],
+  'session.ready': ['session_id'],
+  'session.ended': [],
+  'reply.started': [],
   'input.speech.started': [],
   'input.speech.stopped': [],
   'transcript.user.delta': ['text'],
-  'transcript.agent.delta': ['text'],
-  'reply.audio': ['audio'],
-  'reply.done': [],
-  'tool.call': ['tool_call_id', 'name', 'arguments'],
-  'error': ['message']
+  'transcript.agent.delta': ['delta'],
+  'reply.audio': ['data'],
+  'reply.done': ['status'],
+  'tool.call': ['call_id', 'name'],
+  'session.error': ['message']
 };
 
 export function parseServerMessage(data: string): ServerMessage | null {
@@ -40,7 +45,7 @@ export function parseServerMessage(data: string): ServerMessage | null {
   const rec = msg as Record<string, unknown>;
   const fields = typeof rec.type === 'string' ? requiredStrings[rec.type] : undefined;
   if (fields === undefined) return null;
-  if (rec.type === 'reply.done' && 'interrupted' in rec && typeof rec.interrupted !== 'boolean') return null;
+  if (rec.type === 'tool.call' && (typeof rec.arguments !== 'object' || rec.arguments === null)) return null;
   for (const field of fields) {
     if (typeof rec[field] !== 'string') return null;
   }

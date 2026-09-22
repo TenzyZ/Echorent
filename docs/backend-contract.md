@@ -6,7 +6,7 @@ This document is the contract between the frontend and the backend. Seng owns th
 
 The user describes a trip by voice. The agent understands the trip. The agent offers one or more cars. The UI shows the cars in a slider. The UI shows the current understanding.
 
-In this document, the client is the frontend on the WebSocket. The server is the AssemblyAI service.
+In this document, the client is the frontend on the WebSocket. The server is the AssemblyAI Voice Agent API. The protocol below matches the published AssemblyAI documentation.
 
 ## Endpoints
 
@@ -37,7 +37,7 @@ Returns the car catalog for one location. `<code>` is a `code` from `GET /api/lo
 
 ### `GET /api/voice/token`
 
-Returns the credentials for one voice session.
+Returns the credentials for one voice session. The backend gets the token from `GET https://agents.assemblyai.com/v1/token` with its AssemblyAI API key in the `Authorization` header. The API key never reaches the client.
 
 Response, status 200:
 
@@ -48,7 +48,7 @@ Response, status 200:
 }
 ```
 
-- `token` is a temporary token for the AssemblyAI Voice Agent API.
+- `token` is a temporary token for the AssemblyAI Voice Agent API. Each token is single-use and starts one session. The client must fetch a fresh token for every WebSocket connection, including reconnects.
 - `agent_id` is the id of the stored voice agent.
 
 If the backend cannot create a token, it returns a status other than 200. The body is:
@@ -66,7 +66,7 @@ If the backend cannot create a token, it returns a status other than 200. The bo
 The client opens this URL. Replace `<temp token>` with the token from `GET /api/voice/token`:
 
 ```
-wss://agents.assembly.com/v1/ws?token=<temp token>
+wss://agents.assemblyai.com/v1/ws?token=<temp token>
 ```
 
 There is no browser SDK for this API. The client uses the WebSocket support of the platform. The frontend adds no new dependency.
@@ -76,9 +76,11 @@ The client sends this message first:
 ```json
 {
   "type": "session.update",
-  "session": { "agent": { "agent_id": "<agent_id from the token response>" } }
+  "session": { "agent_id": "<agent_id from the token response>" }
 }
 ```
+
+The server answers with `session.ready`. The client sends audio only after `session.ready`. Audio sent before `session.ready` is an error.
 
 Audio format, both directions:
 
@@ -87,7 +89,7 @@ Audio format, both directions:
 | Client to server | base64 PCM16 | 24 kHz | mono |
 | Server to client | base64 PCM16 | 24 kHz | mono |
 
-The client sends audio in `input_audio_buffer.append`. The server sends audio in `reply.audio`.
+The agent config sets `input.format.encoding` and `output.format.encoding` to `audio/pcm`, the default. The client sends audio in `input.audio`. The server sends audio in `reply.audio`.
 
 ## Message reference
 
@@ -95,29 +97,37 @@ The client sends audio in `input_audio_buffer.append`. The server sends audio in
 
 | Message | Fields | Use |
 | --- | --- | --- |
-| `session.update` | `session.agent.agent_id` | Selects the stored agent. The client sends this message first. |
-| `input_audio_buffer.append` | base64 PCM16 audio | Sends user audio to the server. |
-| `input_audio_buffer.terminate` | none | Ends the audio input from the client. |
-| `input_text.message` | typed text | Sends typed input from the user. This message is an extension of this contract. |
-| `tool.result` | `tool_call_id`, `output` | Answers a `tool.call`. `output` is a JSON string. |
+| `session.update` | `session.agent_id` | Selects the stored agent. The client sends this message first. |
+| `input.audio` | `audio` | Sends one chunk of user audio, base64 PCM16. Send at real time, not faster. |
+| `session.end` | none | Ends the session. The server emits `session.ended` and closes the socket. |
+| `conversation.message` | `role`, `content` | Adds a typed message to the conversation. `role` is `"user"` for typed input. It does not make the agent reply. |
+| `reply.create` | `instructions` (optional) | Makes the agent reply now. The client sends it after `conversation.message` for typed input. |
+| `tool.result` | `call_id`, `result` | Answers a `tool.call`. `result` is a JSON string. |
 
 ### Server to client
 
 | Message | Fields | Use |
 | --- | --- | --- |
-| `session.created` | — | The server created the session. |
+| `session.ready` | `session_id`, `config` | The session is established. The client starts audio after this message. |
+| `session.updated` | `config` | Confirms a mid-session `session.update`. |
+| `session.ended` | `session_duration_seconds` | The last message before the server closes the socket. |
 | `input.speech.started` | — | The user started to speak. |
-| `input.speech.stopped` | — | The user stopped speaking. |
-| `transcript.user.delta` | user text | Holds the full user text so far. It replaces the previous value. |
-| `transcript.agent.delta` | agent text | Holds one new piece of agent text. The client appends the piece. |
-| `reply.audio` | base64 PCM16 audio | Carries agent speech. The client plays the audio. |
-| `reply.done` | `interrupted` (boolean, optional) | The reply ended. `interrupted` is true after a barge-in. |
-| `tool.call` | `tool_call_id`, `name`, `arguments` | The agent requests a tool. `arguments` is a JSON string. |
-| `error` | error data | The server reports an error. |
+| `input.speech.stopped` | — | The user stopped to speak. |
+| `transcript.user.delta` | `text` | Holds the full user text so far. It replaces the previous value. |
+| `transcript.user` | `text` | Holds the final user text of the turn. The client can ignore it. |
+| `reply.started` | `reply_id` | The agent started a reply. |
+| `reply.audio` | `data` | Carries agent speech, base64 PCM16. The client plays the audio. |
+| `transcript.agent.delta` | `delta` | Holds one new piece of agent text. The client appends the piece. |
+| `transcript.agent` | `text`, `interrupted` | Holds the final agent text of the reply. The client can ignore it. |
+| `reply.done` | `status` | The reply ended. `status` is `"completed"` or `"interrupted"`. |
+| `tool.call` | `call_id`, `name`, `arguments` | The agent requests a tool. `arguments` is an object, not a string. |
+| `session.error` | `code`, `message` | The server reports an error. |
 
 ## Tools
 
-Tools execute on the client. The agent config in the backend owns the tool manifest. The client must answer every `tool.call` with one `tool.result`. The client sends `output` as a JSON string.
+Tools execute on the client. The agent config in the backend owns the tool manifest. The client must answer every `tool.call` with one `tool.result`. The client sends `result` as a JSON string.
+
+Timing rule: the client sends `tool.result` when `reply.done` is the last received message. The client collects `tool.call` messages and sends the results in the `reply.done` handler. A `tool.result` during a reply causes errors. On `reply.done` with `status: "interrupted"`, the client discards the collected results.
 
 ### `update_trip`
 
@@ -149,16 +159,26 @@ Client obligation: the client replaces the current card set with this set. The U
 A barge-in occurs when the user speaks during an agent reply. Two signals tell the client about a barge-in:
 
 1. `input.speech.started` during a reply.
-2. `reply.done` with `interrupted: true`.
+2. `reply.done` with `status: "interrupted"`.
 
-The client stops the playback. The client empties the audio queue.
+The client stops the playback. The client empties the audio queue. The server also sends `transcript.agent` with `interrupted: true` and the text trimmed to the spoken part.
+
+## Reconnect
+
+- Tokens are single-use. A reconnect needs a fresh token from `GET /api/voice/token`.
+- The server keeps a session for 30 seconds after a disconnect. The client can send `session.resume` with the `session_id` from `session.ready` to continue the session. This is optional.
+- A WebSocket close without `session.end` keeps the session open for the 30-second grace window. The window is billable. The client sends `session.end` for a clean stop.
 
 ## Language
 
-The agent detects the language automatically. The agent config sets no `language_codes`. The UI renders transcript text with `dir="auto"`.
+The agent detects the input language automatically. The agent config sets no `input.language_codes`. Input detection covers 18 languages with code-switching.
+
+Output voices exist for six languages: English, Spanish, German, French, Italian, Portuguese. `output.voice` is fixed for the life of a session. The agent can understand other input languages but speaks with the configured voice.
+
+The UI renders transcript text with `dir="auto"`.
 
 ## Open questions
 
 | Question | Status | Effect |
 | --- | --- | --- |
-| Does the AssemblyAI service accept `input_text.message` directly? Or must the backend proxy the WebSocket for typed input? | Open | Until the answer is known, typed input stays an extension of this contract. |
+| Can the stored agent hold tools of `type: "function"` that emit `tool.call` on the socket? Or must the client declare them in `session.tools` after `session.ready`? | Open | If the stored agent cannot hold function tools, `GET /api/voice/token` also returns the tool manifest and the client sends a second `session.update` with `session.tools`. |

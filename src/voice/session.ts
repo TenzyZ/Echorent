@@ -35,24 +35,29 @@ export class VoiceSession implements ConversationDriver {
   private planner = new PlaybackPlanner();
   private sources: AudioBufferSourceNode[] = [];
   private pending: number[] = [];
+  private ready = false;
+  private lastEvent: string | null = null;
+  private pendingTools: { call_id: string; result: string }[] = [];
 
   start(): void {
     fetch('/api/voice/token')
       .then((res) => res.json() as Promise<{ token: string; agent_id: string }>)
       .then(({ token, agent_id }) => {
-        const ws = new WebSocket('wss://agents.assembly.com/v1/ws?token=' + encodeURIComponent(token));
+        const ws = new WebSocket('wss://agents.assemblyai.com/v1/ws?token=' + encodeURIComponent(token));
         this.ws = ws;
         ws.onopen = () => {
-          this.send({ type: 'session.update', session: { agent: { agent_id } } });
+          this.send({ type: 'session.update', session: { agent_id } });
           this.startMic();
-          this.emit({ type: 'session.open' });
         };
         ws.onmessage = (e) => this.handleServer(String(e.data));
+        ws.onclose = () => this.emit({ type: 'session.closed' });
       });
   }
 
   stop(): void {
+    this.ready = false;
     this.stopPlayback();
+    this.send({ type: 'session.end' });
     this.ws?.close();
     this.ws = null;
     this.micStream?.getTracks().forEach((track) => track.stop());
@@ -66,11 +71,23 @@ export class VoiceSession implements ConversationDriver {
   }
 
   sendText(text: string): void {
-    this.send({ type: 'input_text.message', text });
+    this.send({ type: 'conversation.message', role: 'user', content: text });
+    this.send({ type: 'reply.create' });
   }
 
+  // tool.result must go out when reply.done was the last server message.
+  // Collect results here and drain them in the reply.done handler.
   sendToolResult(id: string, output: string): void {
-    this.send({ type: 'tool.result', tool_call_id: id, output });
+    this.pendingTools.push({ call_id: id, result: output });
+    this.flushToolsIfIdle();
+  }
+
+  private flushToolsIfIdle(): void {
+    if (this.lastEvent !== 'reply.done') return;
+    for (const t of this.pendingTools) {
+      this.send({ type: 'tool.result', call_id: t.call_id, result: t.result });
+    }
+    this.pendingTools = [];
   }
 
   private send(msg: ClientMessage): void {
@@ -99,6 +116,7 @@ export class VoiceSession implements ConversationDriver {
   }
 
   private collectMicFrame(frame: Float32Array): void {
+    if (!this.ready) return; // no audio before session.ready
     for (let i = 0; i < frame.length; i++) this.pending.push(frame[i]);
     if (this.pending.length < BATCH_SAMPLES) return;
     const bytes = new Uint8Array(this.pending.length * 2);
@@ -108,17 +126,25 @@ export class VoiceSession implements ConversationDriver {
       view.setInt16(i * 2, s < 0 ? s * 32768 : s * 32767, true);
     });
     this.pending = [];
-    this.send({ type: 'input_audio_buffer.append', audio: bytesToBase64(bytes) });
+    this.send({ type: 'input.audio', audio: bytesToBase64(bytes) });
   }
 
   private handleServer(data: string): void {
     const msg = parseServerMessage(data);
     if (!msg) return; // unknown or malformed — ignore
     switch (msg.type) {
-      case 'session.created':
+      case 'session.ready':
+        this.ready = true;
         this.emit({ type: 'session.open' });
         break;
+      case 'session.ended':
+        this.emit({ type: 'session.closed' });
+        break;
+      case 'reply.started':
+        this.lastEvent = 'reply.started';
+        break;
       case 'input.speech.started':
+        this.lastEvent = 'input.speech.started';
         this.stopPlayback(); // barge-in
         this.emit({ type: 'user.speech.started' });
         break;
@@ -129,29 +155,26 @@ export class VoiceSession implements ConversationDriver {
         this.emit({ type: 'user.delta', text: msg.text });
         break;
       case 'transcript.agent.delta':
-        this.emit({ type: 'agent.delta', text: msg.text });
+        this.emit({ type: 'agent.delta', text: msg.delta });
         break;
       case 'reply.audio':
-        this.play(msg.audio);
+        this.play(msg.data);
         break;
       case 'reply.done':
-        if (msg.interrupted) {
+        this.lastEvent = 'reply.done';
+        if (msg.status === 'interrupted') {
+          this.pendingTools = []; // stale results — the agent moved on
           this.stopPlayback();
           this.emit({ type: 'reply.interrupted' });
         } else {
+          this.flushToolsIfIdle();
           this.emit({ type: 'reply.done' });
         }
         break;
       case 'tool.call':
-        try {
-          const args = JSON.parse(msg.arguments) as unknown;
-          if (typeof args !== 'object' || args === null) break; // ponytail: guard the trust boundary
-          this.emit({ type: 'tool.call', id: msg.tool_call_id, name: msg.name, args: args as Record<string, unknown> });
-        } catch {
-          // bad JSON — ignore the message
-        }
+        this.emit({ type: 'tool.call', id: msg.call_id, name: msg.name, args: msg.arguments });
         break;
-      case 'error':
+      case 'session.error':
         console.warn('Voice session error:', msg.message);
         break;
     }
