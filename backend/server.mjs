@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createServer as createHttpServer } from "node:http";
 import { pathToFileURL } from "node:url";
 import { DEMO_INVENTORY } from "./demo-inventory.mjs";
+import { createReservationService } from "./reservations.mjs";
 import { searchCars } from "./search.mjs";
 
 function authorized(header, secret) {
@@ -38,9 +39,37 @@ export function createServer({
   fetchImpl = fetch,
   tokenTimeoutMs = 5_000,
   logger = console.log,
+  reservationOptions = {},
 } = {}) {
+  const { createBookingRequest } = createReservationService({ now, cars, ...reservationOptions });
   return createHttpServer(async (request, response) => {
     const path = request.url?.split("?", 1)[0];
+    if (path === "/api/reservation_requests") {
+      const noStore = { "Cache-Control": "no-store" };
+      if (request.method !== "POST") return send(response, 405, { error: "method_not_allowed" }, noStore);
+      let input;
+      try { input = await readJson(request); }
+      catch { return send(response, 400, { error: "invalid_json" }, noStore); }
+      const started = performance.now();
+      let outcome;
+      try { outcome = await createBookingRequest(input); }
+      catch { outcome = { status: 500, body: { error: "store_unavailable" } }; }
+      send(response, outcome.status, outcome.body, noStore);
+      try {
+        logger(JSON.stringify({
+          route: path, ok: outcome.body.ok === true,
+          error_codes: outcome.body.errors?.map(({ code }) => code) ?? [],
+          request_id: outcome.body.request?.request_id,
+          car_id: outcome.body.request?.car?.car_id,
+          airport: outcome.body.request?.rental?.airport,
+          replayed: outcome.body.replayed,
+          notifications: outcome.body.notifications,
+          notification_errors: outcome.notification_errors,
+          duration_ms: Math.round(performance.now() - started),
+        }));
+      } catch { /* Logging must not change the response. */ }
+      return;
+    }
     if (path === "/api/voice/token") {
       const noStore = { "Cache-Control": "no-store" };
       if (request.method !== "GET") return send(response, 405, { error: "method_not_allowed" }, noStore);

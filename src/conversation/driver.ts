@@ -6,4 +6,5 @@ export interface ConversationDriver {
   stop(): void;
   setMic(enabled: boolean): void;
   sendText(text: string): void;
+  notify(text: string): void;
 }

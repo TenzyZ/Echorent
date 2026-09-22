@@ -208,7 +208,7 @@ describe('VoiceSession tool results', () => {
     const results = ws.sent.filter(({ type }) => type === 'tool.result');
     expect(results).toEqual([{ type: 'tool.result', call_id: 'call_1', result: BODY, is_error: false }]);
     const rendered = events.find((event) => event.type === 'search.result');
-    expect(rendered).toEqual({ type: 'search.result', result: JSON.parse(BODY) });
+    expect(rendered).toEqual({ type: 'search.result', args: golden, result: JSON.parse(BODY) });
   });
 
   it('ignores a duplicate call ID: one search, one result', async () => {
@@ -245,6 +245,89 @@ describe('VoiceSession tool results', () => {
     const [result] = ws.sent.filter(({ type }) => type === 'tool.result');
     expect(result).toEqual({ type: 'tool.result', call_id: 'call_1', result: '{"error":"search_unavailable"}', is_error: true });
     expect(events.some(({ type }) => type === 'search.result')).toBe(false);
+  });
+
+  it('select_car uses only the last released search, takes no fetch, and emits after gate release', async () => {
+    const { ws } = await readySession();
+    ws.receive({ type: 'reply.started' });
+    ws.receive({ type: 'tool.call', call_id: 'search_1', name: 'search_cars', arguments: golden });
+    ws.receive({ type: 'reply.done', status: 'completed' });
+    searches[0].resolve(BODY);
+    await flush();
+    ws.receive({ type: 'reply.started' });
+    ws.receive({ type: 'tool.call', call_id: 'select_1', name: 'select_car', arguments: { car_id: 'demo-sin-1' } });
+    expect(events.some(({ type }) => type === 'car.selected')).toBe(false);
+    expect(searchRequests).toHaveLength(1);
+    ws.receive({ type: 'reply.done', status: 'completed' });
+    expect(events.filter(({ type }) => type === 'car.selected')).toEqual([{ type: 'car.selected', carId: 'demo-sin-1' }]);
+    expect(ws.sent.filter(({ type, call_id }) => type === 'tool.result' && call_id === 'select_1')).toEqual([
+      { type: 'tool.result', call_id: 'select_1', result: '{"ok":true,"car_id":"demo-sin-1"}', is_error: false }
+    ]);
+    ws.receive({ type: 'tool.call', call_id: 'select_1', name: 'select_car', arguments: { car_id: 'demo-sin-1' } });
+    expect(events.filter(({ type }) => type === 'car.selected')).toHaveLength(1);
+  });
+
+  it('rejects selection from unreleased or interrupted search and drops interrupted selection', async () => {
+    const { ws } = await readySession();
+    ws.receive({ type: 'reply.started' });
+    ws.receive({ type: 'tool.call', call_id: 'search_1', name: 'search_cars', arguments: golden });
+    ws.receive({ type: 'tool.call', call_id: 'select_early', name: 'select_car', arguments: { car_id: 'demo-sin-1' } });
+    ws.receive({ type: 'reply.done', status: 'completed' });
+    searches[0].resolve(BODY);
+    await flush();
+    expect(ws.sent.find(({ call_id }) => call_id === 'select_early')).toMatchObject({ is_error: true });
+    expect(events.some(({ type }) => type === 'car.selected')).toBe(false);
+    ws.receive({ type: 'reply.started' });
+    ws.receive({ type: 'tool.call', call_id: 'select_interrupt', name: 'select_car', arguments: { car_id: 'demo-sin-1' } });
+    ws.receive({ type: 'reply.done', status: 'interrupted' });
+    ws.receive({ type: 'reply.done', status: 'completed' });
+    expect(ws.sent.find(({ call_id }) => call_id === 'select_interrupt')).toBeUndefined();
+    expect(events.some(({ type }) => type === 'car.selected')).toBe(false);
+  });
+
+  it('invalidates a held selection when a newer search releases first', async () => {
+    const { ws } = await readySession();
+    ws.receive({ type: 'reply.started' });
+    ws.receive({ type: 'tool.call', call_id: 'search_1', name: 'search_cars', arguments: golden });
+    ws.receive({ type: 'reply.done', status: 'completed' });
+    searches[0].resolve(BODY);
+    await flush();
+    ws.receive({ type: 'reply.started' });
+    ws.receive({ type: 'tool.call', call_id: 'search_2', name: 'search_cars', arguments: golden });
+    ws.receive({ type: 'tool.call', call_id: 'select_stale', name: 'select_car', arguments: { car_id: 'demo-sin-1' } });
+    ws.receive({ type: 'reply.done', status: 'completed' });
+    searches[1].resolve(BODY.replace('demo-sin-1', 'demo-sin-2'));
+    await flush();
+    expect(ws.sent.find(({ call_id }) => call_id === 'select_stale')).toMatchObject({ is_error: true, result: '{"error":"stale_selection"}' });
+    expect(events.some(({ type }) => type === 'car.selected')).toBe(false);
+  });
+
+  it('notify sends a system message only while ready and live', async () => {
+    const session = new VoiceSession();
+    session.notify('Pending review.');
+    session.start();
+    await flush();
+    const ws = FakeWebSocket.last!;
+    ws.open();
+    session.notify('Pending review.');
+    expect(ws.sentTypes()).not.toContain('conversation.message');
+    ws.receive({ type: 'session.ready', session_id: 'sess_1' });
+    session.notify('Pending review.');
+    expect(ws.sent.slice(-2)).toEqual([
+      { type: 'conversation.message', role: 'system', content: 'Pending review.' }, { type: 'reply.create' }
+    ]);
+    session.stop();
+    const count = ws.sent.length;
+    session.notify('Late.');
+    expect(ws.sent).toHaveLength(count);
+  });
+
+  it('notify does nothing after a fatal voice failure', async () => {
+    const { session, ws } = await readySession();
+    ws.receive({ type: 'session.error', message: 'failed' });
+    const count = ws.sent.length;
+    session.notify('Late outcome.');
+    expect(ws.sent).toHaveLength(count);
   });
 });
 

@@ -27,7 +27,10 @@ export const exampleConversation: ScriptStep[] = [
   { delayMs: 1400, event: { type: 'user.speech.started' } },
   { delayMs: 400, event: { type: 'user.delta', text: 'Dubai, September 24 at 7, back September 26 at 19:00. I am 24.' } },
   { delayMs: 500, event: { type: 'user.speech.stopped' } },
-  { delayMs: 800, event: { type: 'search.result', result: dxbResult } },
+  { delayMs: 800, event: { type: 'search.result', args: {
+    pickup_airport: 'DXB', pickup_date: 'September 24', pickup_time: '07:00',
+    return_date: 'September 26', return_time: '19:00', driver_age: 24
+  }, result: dxbResult } },
   { delayMs: 300, event: { type: 'reply.started' } },
   { delayMs: 300, event: { type: 'agent.delta', text: 'I found three demo cars at Dubai International.' } },
   { delayMs: 900, event: { type: 'reply.done' } },
@@ -35,6 +38,7 @@ export const exampleConversation: ScriptStep[] = [
   { delayMs: 400, event: { type: 'user.delta', text: 'The Nissan X-Trail works for me.' } },
   { delayMs: 500, event: { type: 'user.speech.stopped' } },
   { delayMs: 500, event: { type: 'reply.started' } },
-  { delayMs: 300, event: { type: 'agent.delta', text: "Reservation requests aren't connected in this demo yet." } },
+  { delayMs: 300, event: { type: 'car.selected', carId: 'demo-dxb-2' } },
+  { delayMs: 300, event: { type: 'agent.delta', text: 'Please type your email on screen to send a request.' } },
   { delayMs: 900, event: { type: 'reply.done' } }
 ];
