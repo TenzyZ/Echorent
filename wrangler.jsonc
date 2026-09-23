@@ -1,0 +1,26 @@
+{
+	"name": "echorent",
+	"pages_build_output_dir": "./dist",
+	"compatibility_date": "2026-09-21",
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "echorent",
+			"database_id": "7541ff6e-7d43-4cc7-97e8-494389e1aae3",
+			"preview_database_id": "DB",
+			"migrations_dir": "migrations"
+		}
+	],
+	"env": {
+		"preview": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "echorent-preview",
+					"database_id": "06898f2c-cca4-4cb8-923c-c2eb56ddd1a2",
+					"migrations_dir": "migrations"
+				}
+			]
+		}
+	}
+}
