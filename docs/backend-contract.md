@@ -78,12 +78,37 @@ Tool results are held while an agent reply is in flight, released in call order 
 
 The traveller reviews the selected car, airport, pickup, and return before pressing Send request. The browser sends `{ "search": <exact released search_cars arguments>, "car_id": "...", "email": "...", "reviewed_rental": <that released result's rental> }`. No other top-level fields are accepted, and `reviewed_rental` must have the exact `rental` shape. PUT/PATCH return `405 method_not_allowed`.
 
-The backend re-runs `searchCars(search)` and verifies the returned car. If the canonical `rental` (airport, airport name, pickup and return date, weekday, and time, driver age) differs from `reviewed_rental`, for example because a relative date such as `tomorrow` resolves differently after airport-local midnight, it returns `409 search_expired` with nothing persisted and no email sent; the traveller must search again. It then validates email and server email configuration, then makes one serialized durable decision. A new request is appended to `reservation-requests.jsonl` with literal `status: "pending"` before any email attempt. The result includes the authoritative request and separate `notifications.internal` and `notifications.traveller` statuses (`sent` or `failed`). Notification failure does not erase a saved request. A failed notification line in the JSONL store, and the server's request log, carry a PII-safe `error` diagnostic (`provider`, `operation`, HTTP `status`, Resend error `code`, sanitized `message`, or `timeout`/`network_error`); it never reaches the browser. The traveller UI and Shen report only the traveller acknowledgement status. Missing configuration returns `503 reservations_unavailable` before persistence.
+The backend re-runs `searchCars(search)` and verifies the returned car. If the canonical `rental` (airport, airport name, pickup and return date, weekday, and time, driver age) differs from `reviewed_rental`, for example because a relative date such as `tomorrow` resolves differently after airport-local midnight, it returns `409 search_expired` with nothing persisted and no email sent; the traveller must search again. It then validates email and server email configuration, then makes a durable decision. The local Node server appends a new request to `reservation-requests.jsonl`, while Pages inserts into D1. Both store literal `status: "pending"` before any email attempt. The result includes the authoritative request and separate `notifications.internal` and `notifications.traveller` statuses (`sent` or `failed`). Notification failure does not erase a saved request. A failed notification record and the server's request log carry a PII-safe `error` diagnostic (`provider`, `operation`, HTTP `status`, Resend error `code`, sanitized `message`, or `timeout`/`network_error`); it never reaches the browser. The traveller UI and Shen report only the traveller acknowledgement status. Missing configuration or the Pages DB binding returns `503 reservations_unavailable` before persistence.
 
 For the same normalized email, exact car, airport, canonical pickup/return, and driver age replay the original pending request and ID. Only roles lacking a durable `sent` record are retried with the same `${request_id}/<role>` idempotency key. Same-airport overlapping intervals that are not exact replay return `409 existing_request`, with only `{ "status": "pending" }` under `existing_request`. The unauthenticated conflict response contains no persisted request details. Touching intervals, non-overlapping intervals, different emails, and cross-airport rentals may create separate requests.
 
 JSONL is local demo persistence for one process. The index is rebuilt from disk after restart and corrupt data fails closed. Decisions serialize through email delivery. Resend currently keeps idempotency keys for 24 hours; a provider acceptance followed by a crash before the sent record is appended can require provider idempotency on retry.
 
+## Cloudflare Pages and D1
+
+Cloudflare Pages serves the static Vite build. Only `/api/voice/token`,
+`/api/search_cars`, and `/api/reservation_requests` run as Pages Functions.
+The Functions and Node server use the same Web-safe search, reservation, and
+email logic. The bearer-protected `/tools/search_cars` route stays Node-only.
+No authentication was added.
+
+Node development retains the JSONL store and its whole-operation queue.
+Cloudflare uses D1 with one atomic conditional INSERT to claim an overlapping
+window. An exact request replays its existing ID; a different overlap for the
+same normalized email and airport conflicts. Touching windows are allowed.
+D1 notification UPSERTs keep `sent` sticky. Only failed or unsent roles retry
+using `${request_id}/${role}`. Request status remains pending; email failure
+cannot roll back the request.
+
+Use Node.js 22 or newer. For local Pages development run `npm run build`,
+`npx wrangler d1 migrations apply echorent --local`, then
+`npx wrangler pages dev`. The top-level `preview_database_id: "DB"` is for
+local Pages D1, not the remote production database. Production `echorent`
+and Preview `echorent-preview` require separate D1 databases; the zero UUIDs
+in `wrangler.jsonc` are placeholders. Keep `ASSEMBLYAI_API_KEY`,
+`AGENT_ID_ECHORENT`, `RESEND_API_KEY`, `ECHORENT_EMAIL_FROM`, and
+`ECHORENT_NOTIFY_TO` server-side.
+
 ## Deferred
 
-Confirmation, approval/rejection, modification, cancellation, agreement submission, Google authentication, database persistence, SMS, payment, live provider inventory, and additional airports are not active. `RenterForm` and `AgreementCard` remain Storybook-only visual components. No model-facing create, modify, cancel, or generic send_email tool is active.
+Confirmation, approval/rejection, modification, cancellation, agreement submission, Google authentication, SMS, payment, live provider inventory, and additional airports are not active. `RenterForm` and `AgreementCard` remain Storybook-only visual components. No model-facing create, modify, cancel, or generic send_email tool is active.

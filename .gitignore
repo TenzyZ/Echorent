@@ -5,3 +5,5 @@ storybook-static/
 .env
 .env.*
 backend/data/
+.wrangler/
+.dev.vars*
