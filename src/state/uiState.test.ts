@@ -42,7 +42,8 @@ describe('UI state', () => {
       error: null,
       ended: false,
       currentSearch: null,
-      request: null
+      request: null,
+      optimisticSelection: null
     });
   });
 
@@ -132,6 +133,48 @@ describe('UI state', () => {
     const failedSearch = reduce(selected, { type: 'search.result', args, result: { ok: false, demo: true, errors: [] } });
     expect(failedSearch.currentSearch).toBeNull();
     expect(reduce(failedSearch, { type: 'car.selected', carId: 'demo-dxb-2' })).toBe(failedSearch);
+  });
+
+  it('restores an empty request after the first optimistic selection is interrupted', () => {
+    const searched = reduce(initialState, { type: 'search.result', args, result: success });
+    const selected = reduce(searched, { type: 'car.selected', carId: 'demo-dxb-2', optimistic: true });
+    expect(selected.request).toEqual({ phase: 'awaiting_email', carId: 'demo-dxb-2' });
+    const restored = reduce(selected, { type: 'car.selection.dropped', carId: 'demo-dxb-2' });
+    expect(restored.request).toBeNull();
+    expect(restored.optimisticSelection).toBeNull();
+  });
+
+  it('restores the exact previous selected request after an interrupted change', () => {
+    const searched = reduce(initialState, { type: 'search.result', args, result: success });
+    const previous = reduce(searched, { type: 'car.selected', carId: 'demo-dxb-2' });
+    const optimistic = reduce(previous, { type: 'car.selected', carId: 'demo-dxb-1', optimistic: true });
+    expect(optimistic.request).toEqual({ phase: 'awaiting_email', carId: 'demo-dxb-1' });
+    const restored = reduce(optimistic, { type: 'car.selection.dropped', carId: 'demo-dxb-1' });
+    expect(restored.request).toBe(previous.request);
+    expect(restored.optimisticSelection).toBeNull();
+  });
+
+  it('protects post-submission request states from optimistic selection', () => {
+    const searched = reduce(initialState, { type: 'search.result', args, result: success });
+    const selected = reduce(searched, { type: 'car.selected', carId: 'demo-dxb-2' });
+    const submitting = reduce(selected, { type: 'ui.request.submit', carId: 'demo-dxb-2', submissionId: 1 });
+    const pendingState = reduce(submitting, { type: 'reservation.result', carId: 'demo-dxb-2', submissionId: 1, result: pending });
+    const replayed = reduce(submitting, { type: 'reservation.result', carId: 'demo-dxb-2', submissionId: 1, result: { ...pending, replayed: true } });
+    const conflicted = reduce(submitting, { type: 'reservation.result', carId: 'demo-dxb-2', submissionId: 1, result: conflict });
+    const failed = reduce(submitting, { type: 'reservation.failed', carId: 'demo-dxb-2', submissionId: 1 });
+    for (const state of [submitting, pendingState, replayed, conflicted, failed]) {
+      expect(reduce(state, { type: 'car.selected', carId: 'demo-dxb-1', optimistic: true })).toBe(state);
+    }
+  });
+
+  it('keeps a successful changed selection after reply.done', () => {
+    const searched = reduce(initialState, { type: 'search.result', args, result: success });
+    const previous = reduce(searched, { type: 'car.selected', carId: 'demo-dxb-2' });
+    const optimistic = reduce(previous, { type: 'car.selected', carId: 'demo-dxb-1', optimistic: true });
+    const completed = reduce(optimistic, { type: 'reply.done' });
+    expect(completed.request).toEqual({ phase: 'awaiting_email', carId: 'demo-dxb-1' });
+    expect(completed.optimisticSelection).toBeNull();
+    expect(reduce(completed, { type: 'car.selection.dropped', carId: 'demo-dxb-1' })).toBe(completed);
   });
 
   it('handles pending, replay, conflict, failure, duplicate submit, and stale completion', () => {

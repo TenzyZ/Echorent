@@ -29,7 +29,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 interface ToolOutcome {
   search?: { result: BackendSearchResult; args: Record<string, unknown> };
-  selection?: { carId: string; revision: number };
+  selection?: { carId: string; revision: number; early: boolean };
   error?: string;
 }
 
@@ -227,6 +227,10 @@ export class VoiceSession implements ConversationDriver {
         break;
       case 'reply.done':
         if (message.status === 'interrupted') {
+          for (const callId of this.gate.pendingCallIds()) {
+            const selection = this.outcomes.get(callId)?.selection;
+            if (selection?.early) this.emit({ type: 'car.selection.dropped', carId: selection.carId });
+          }
           this.gate.onReplyDone(true);
           this.dropSearches();
           this.stopPlayback();
@@ -252,7 +256,9 @@ export class VoiceSession implements ConversationDriver {
       const carId = args.car_id;
       if (Object.keys(args).length === 1 && typeof carId === 'string'
         && this.lastReleasedSearch?.result.cars.some(({ car_id }) => car_id === carId)) {
-        this.outcomes.set(callId, { selection: { carId, revision: this.searchRevision } });
+        const early = this.gate.pendingCallIds()[0] === callId;
+        this.outcomes.set(callId, { selection: { carId, revision: this.searchRevision, early } });
+        if (early) this.emit({ type: 'car.selected', carId, optimistic: true });
         this.release(this.gate.resolve(callId, JSON.stringify({ ok: true, car_id: carId })));
       } else {
         this.release(this.gate.resolve(callId, JSON.stringify({ error: 'invalid_selection' }), true));
@@ -312,7 +318,9 @@ export class VoiceSession implements ConversationDriver {
           ? { args: outcome.search.args, result: outcome.search.result } : null;
         this.emit({ type: 'search.result', ...outcome.search });
       }
-      if (outcome?.selection && selectionValid) this.emit({ type: 'car.selected', carId: outcome.selection.carId });
+      if (outcome?.selection && selectionValid && !outcome.selection.early) {
+        this.emit({ type: 'car.selected', carId: outcome.selection.carId });
+      }
       if (outcome?.error) {
         this.setMic(false);
         this.emit({ type: 'session.error', message: outcome.error });

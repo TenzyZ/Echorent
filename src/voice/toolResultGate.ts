@@ -27,6 +27,13 @@ export class ToolResultGate {
     return true;
   }
 
+  pendingCallIds(): string[] {
+    return this.order.filter((callId) => {
+      const call = this.calls.get(callId);
+      return call && !call.sent && !call.dropped;
+    });
+  }
+
   onReplyStarted(): void {
     this.latest = 'reply.started';
   }
