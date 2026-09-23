@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UIEvent } from '../state/uiState';
+import { initialState, reduce, type UIEvent } from '../state/uiState';
 import { VoiceSession } from './session';
 
 // Deterministic fakes for the browser surface VoiceSession touches.
@@ -247,7 +247,7 @@ describe('VoiceSession tool results', () => {
     expect(events.some(({ type }) => type === 'search.result')).toBe(false);
   });
 
-  it('select_car uses only the last released search, takes no fetch, and emits after gate release', async () => {
+  it('select_car presents immediately but sends one tool result only after reply.done', async () => {
     const { ws } = await readySession();
     ws.receive({ type: 'reply.started' });
     ws.receive({ type: 'tool.call', call_id: 'search_1', name: 'search_cars', arguments: golden });
@@ -256,15 +256,42 @@ describe('VoiceSession tool results', () => {
     await flush();
     ws.receive({ type: 'reply.started' });
     ws.receive({ type: 'tool.call', call_id: 'select_1', name: 'select_car', arguments: { car_id: 'demo-sin-1' } });
-    expect(events.some(({ type }) => type === 'car.selected')).toBe(false);
+    expect(events.filter(({ type }) => type === 'car.selected')).toEqual([{ type: 'car.selected', carId: 'demo-sin-1', optimistic: true }]);
+    expect(ws.sent.find(({ call_id }) => call_id === 'select_1')).toBeUndefined();
     expect(searchRequests).toHaveLength(1);
     ws.receive({ type: 'reply.done', status: 'completed' });
-    expect(events.filter(({ type }) => type === 'car.selected')).toEqual([{ type: 'car.selected', carId: 'demo-sin-1' }]);
+    expect(events.filter(({ type }) => type === 'car.selected')).toEqual([{ type: 'car.selected', carId: 'demo-sin-1', optimistic: true }]);
     expect(ws.sent.filter(({ type, call_id }) => type === 'tool.result' && call_id === 'select_1')).toEqual([
       { type: 'tool.result', call_id: 'select_1', result: '{"ok":true,"car_id":"demo-sin-1"}', is_error: false }
     ]);
     ws.receive({ type: 'tool.call', call_id: 'select_1', name: 'select_car', arguments: { car_id: 'demo-sin-1' } });
     expect(events.filter(({ type }) => type === 'car.selected')).toHaveLength(1);
+  });
+
+  it('keeps a changed selection after completed reply.done and gates its tool result', async () => {
+    const { ws } = await readySession();
+    const search = JSON.parse(BODY) as { cars: Record<string, unknown>[] };
+    const twoCars = JSON.stringify({ ...search, cars: [...search.cars, { ...search.cars[0], car_id: 'demo-sin-2' }] });
+    ws.receive({ type: 'reply.started' });
+    ws.receive({ type: 'tool.call', call_id: 'search_1', name: 'search_cars', arguments: golden });
+    ws.receive({ type: 'reply.done', status: 'completed' });
+    searches[0].resolve(twoCars);
+    await flush();
+
+    ws.receive({ type: 'reply.started' });
+    ws.receive({ type: 'tool.call', call_id: 'select_b', name: 'select_car', arguments: { car_id: 'demo-sin-2' } });
+    ws.receive({ type: 'reply.done', status: 'completed' });
+    expect(events.reduce(reduce, initialState).request).toEqual({ phase: 'awaiting_email', carId: 'demo-sin-2' });
+
+    ws.receive({ type: 'reply.started' });
+    ws.receive({ type: 'tool.call', call_id: 'select_a', name: 'select_car', arguments: { car_id: 'demo-sin-1' } });
+    expect(events.reduce(reduce, initialState).request).toEqual({ phase: 'awaiting_email', carId: 'demo-sin-1' });
+    expect(ws.sent.find(({ call_id }) => call_id === 'select_a')).toBeUndefined();
+    ws.receive({ type: 'reply.done', status: 'completed' });
+    expect(events.reduce(reduce, initialState).request).toEqual({ phase: 'awaiting_email', carId: 'demo-sin-1' });
+    expect(ws.sent.find(({ call_id }) => call_id === 'select_a')).toEqual({
+      type: 'tool.result', call_id: 'select_a', result: '{"ok":true,"car_id":"demo-sin-1"}', is_error: false
+    });
   });
 
   it('rejects selection from unreleased or interrupted search and drops interrupted selection', async () => {
@@ -279,10 +306,11 @@ describe('VoiceSession tool results', () => {
     expect(events.some(({ type }) => type === 'car.selected')).toBe(false);
     ws.receive({ type: 'reply.started' });
     ws.receive({ type: 'tool.call', call_id: 'select_interrupt', name: 'select_car', arguments: { car_id: 'demo-sin-1' } });
+    expect(events.filter(({ type }) => type === 'car.selected')).toEqual([{ type: 'car.selected', carId: 'demo-sin-1', optimistic: true }]);
     ws.receive({ type: 'reply.done', status: 'interrupted' });
     ws.receive({ type: 'reply.done', status: 'completed' });
     expect(ws.sent.find(({ call_id }) => call_id === 'select_interrupt')).toBeUndefined();
-    expect(events.some(({ type }) => type === 'car.selected')).toBe(false);
+    expect(events.filter(({ type }) => type === 'car.selection.dropped')).toEqual([{ type: 'car.selection.dropped', carId: 'demo-sin-1' }]);
   });
 
   it('invalidates a held selection when a newer search releases first', async () => {
@@ -295,6 +323,7 @@ describe('VoiceSession tool results', () => {
     ws.receive({ type: 'reply.started' });
     ws.receive({ type: 'tool.call', call_id: 'search_2', name: 'search_cars', arguments: golden });
     ws.receive({ type: 'tool.call', call_id: 'select_stale', name: 'select_car', arguments: { car_id: 'demo-sin-1' } });
+    expect(events.some(({ type }) => type === 'car.selected')).toBe(false);
     ws.receive({ type: 'reply.done', status: 'completed' });
     searches[1].resolve(BODY.replace('demo-sin-1', 'demo-sin-2'));
     await flush();

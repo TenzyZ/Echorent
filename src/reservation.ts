@@ -92,11 +92,11 @@ export function requestOutcomeMessage(result: ReservationResult): string {
       : "That request was already submitted and is still pending human review. I couldn't send the acknowledgement email.";
   }
   return sent
-    ? "Your request has been received and is pending human review. I've sent an acknowledgement email, but this is not a confirmed rental yet."
+    ? "Thanks, your request has been submitted for review and remains pending. We've sent an acknowledgement email. Is there anything else I can help with?"
     : "Your request has been received and is pending human review. I couldn't send the acknowledgement email, but your request is still saved.";
 }
 
-// Shen speaks the backend-derived outcome verbatim, once, instead of improvising provider state.
+// Shen speaks the backend-derived outcome verbatim, once.
 export function requestOutcomeNotice(result: ReservationResult): string {
   return `Reservation request outcome. Say exactly this to the traveller once, then wait: "${requestOutcomeMessage(result)}"`;
 }

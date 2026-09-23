@@ -56,7 +56,7 @@ describe('reservation client boundary', () => {
   it('speaks one deterministic, grounded outcome from the traveller acknowledgement status only', () => {
     const outcome = (traveller: 'sent' | 'failed', internal: 'sent' | 'failed', replayed = false) =>
       requestOutcomeMessage({ ...success, replayed, notifications: { internal: { status: internal }, traveller: { status: traveller } } });
-    const sent = "Your request has been received and is pending human review. I've sent an acknowledgement email, but this is not a confirmed rental yet.";
+    const sent = "Thanks, your request has been submitted for review and remains pending. We've sent an acknowledgement email. Is there anything else I can help with?";
     const failed = "Your request has been received and is pending human review. I couldn't send the acknowledgement email, but your request is still saved.";
     for (const internal of ['sent', 'failed'] as const) {
       expect(outcome('sent', internal)).toBe(sent);
@@ -70,7 +70,7 @@ describe('reservation client boundary', () => {
       { ...success, notifications: { internal: { status: 'failed' as const }, traveller: { status: 'failed' as const } } },
     ]) {
       const message = requestOutcomeMessage(result);
-      expect(message).not.toMatch(/@|ER-|\u2014|team|booked|\baccept|approv|shortly|wait time|minutes?|hours?|\b(is|are) (confirmed|reserved|guaranteed)/i);
+      expect(message).not.toMatch(/@|ER-|\u2014|booked|\baccept|approved|shortly|wait time|minutes?|hours?|\b(is|are) (confirmed|reserved|guaranteed)|once it's confirmed|team will email|once there's an update/i);
       expect(message.match(/pending/g)?.length ?? 0).toBeLessThanOrEqual(1);
       expect(requestOutcomeNotice(result)).toBe(`Reservation request outcome. Say exactly this to the traveller once, then wait: "${message}"`);
     }

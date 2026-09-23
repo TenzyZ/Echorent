@@ -72,7 +72,7 @@ For `search_cars`, valid canonical response text is preserved exactly for `tool.
 
 Tool results are held while an agent reply is in flight, released in call order after normal `reply.done`, and dropped after interrupted `reply.done`. This ordering remains subject to the authorized live browser verification.
 
-`select_car` is a client-local tool. It validates `car_id` against the latest released successful search result, resolves through the same ToolResultGate, and emits selection only on release. It does not fetch or create a request. The UI retains that search's exact arguments and authoritative result. Email is typed into a dedicated form and never enters a conversation message or tool argument.
+`select_car` is a client-local tool. It validates `car_id` against the latest released successful search result. If all earlier calls have been sent or dropped, the locally validated selection may update the UI immediately; otherwise it waits for release. `tool.result` still waits for normal `reply.done`, and an interrupted unsent early selection is reverted. It does not fetch or create a request. The UI retains that search's exact arguments and authoritative result; backend state remains authoritative for reservation creation and status. Email is typed into a dedicated form and never enters a conversation message or tool argument.
 
 ## `POST /api/reservation_requests`
 

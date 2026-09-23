@@ -115,6 +115,19 @@ describe('ToolResultGate', () => {
     expect(gate.resolve('a', 'A')).toEqual([...released('a', 'A'), ...released('b', 'B')]);
   });
 
+  it('reports only unsent calls in order for safe local presentation and interruption', () => {
+    const gate = inReply();
+    gate.addCall('search');
+    gate.addCall('select');
+    expect(gate.pendingCallIds()).toEqual(['search', 'select']);
+    gate.resolve('search', 'S');
+    gate.onReplyDone(false);
+    expect(gate.pendingCallIds()).toEqual(['select']);
+    gate.onReplyStarted();
+    gate.onReplyDone(true);
+    expect(gate.pendingCallIds()).toEqual([]);
+  });
+
   it('carries the protocol error flag with the released result', () => {
     const gate = inReply();
     gate.addCall('a');

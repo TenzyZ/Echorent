@@ -471,7 +471,7 @@ test("T20 canonical agent preserves Shen identity and exposes search_cars plus c
   const agent = JSON.parse(source.replace(/^\s*\/\/.*$/gm, ""));
   assert.equal(agent.name, "EchoRent");
   assert.match(agent.system_prompt, /^You are Shen, EchoRent's airport car-rental voice agent\./);
-  assert.equal(agent.greeting, "Hey, welcome to EchoRent. I'm Shen. Are you picking up your car in Dubai or Singapore?");
+  assert.equal(agent.greeting, "Hi, welcome to EchoRent. My name is Shen. How may I help you?");
   assert.equal(agent.voice.voice_id, "eve");
   assert.equal(agent.output.voice, "eve");
   assert.doesNotMatch(JSON.stringify(agent), /\b(?:Ryan|George)\b/i);
@@ -488,7 +488,13 @@ test("T20 canonical agent preserves Shen identity and exposes search_cars plus c
   assert.match(agent.system_prompt, /stop speaking any earlier validation failure/);
   assert.match(agent.system_prompt, /successful later search_cars result supersedes earlier validation errors/);
   assert.match(agent.system_prompt, /next Friday/);
-  assert.match(agent.system_prompt, /no demo cars are available/);
+  assert.match(agent.system_prompt, /Extract and retain every usable field in a single utterance/);
+  assert.match(agent.system_prompt, /no cars are available for that search/);
+  assert.match(agent.system_prompt, /call select_car immediately, before speaking/);
+  assert.match(agent.system_prompt, /request is still under review/);
+  assert.match(agent.system_prompt, /Never claim a rental is confirmed, booked, reserved, or guaranteed/);
+  assert.match(agent.system_prompt, /Do not proactively mention demo inventory in normal speech/);
+  assert.doesNotMatch(agent.system_prompt, /Say once that the options are demo/);
   assert.equal(agent.tools.length, 2);
   const [tool, select] = agent.tools;
   assert.equal(tool.name, "search_cars");

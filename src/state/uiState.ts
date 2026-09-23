@@ -35,6 +35,7 @@ export interface UIState {
   ended: boolean;
   currentSearch: { args: Record<string, unknown>; result: Extract<BackendSearchResult, { ok: true }> } | null;
   request: RequestState | null;
+  optimisticSelection: { carId: string; previousRequest: RequestState | null } | null;
 }
 
 export const initialState: UIState = {
@@ -49,7 +50,8 @@ export const initialState: UIState = {
   error: null,
   ended: false,
   currentSearch: null,
-  request: null
+  request: null,
+  optimisticSelection: null
 };
 
 export type UIEvent =
@@ -68,7 +70,8 @@ export type UIEvent =
   | { type: 'reply.done' }
   | { type: 'tool.call'; id: string; name: string; args: Record<string, unknown> }
   | { type: 'search.result'; args: Record<string, unknown>; result: BackendSearchResult }
-  | { type: 'car.selected'; carId: string }
+  | { type: 'car.selected'; carId: string; optimistic?: boolean }
+  | { type: 'car.selection.dropped'; carId: string }
   | { type: 'ui.request.submit'; carId: string; submissionId: number }
   | { type: 'ui.request.back' }
   | { type: 'reservation.result'; carId: string; submissionId: number; result: ReservationResult }
@@ -127,17 +130,18 @@ export function reduce(state: UIState, event: UIEvent): UIState {
       return { ...state, line: { speaker: 'agent', text: event.text } };
     case 'reply.interrupted':
     case 'reply.done':
-      return { ...state, phase: state.micOn ? 'listening' : 'idle' };
+      return { ...state, phase: state.micOn ? 'listening' : 'idle', optimisticSelection: null };
     case 'search.result': {
       // An in-flight submission may already exist on the backend; keep it so its result still renders.
       const request = state.request?.phase === 'submitting' ? state.request : null;
       if (!event.result.ok) {
-        return { ...state, cards: [], notice: null, detailsOpen: false, detailsCarId: null, currentSearch: null, request };
+        return { ...state, cards: [], notice: null, detailsOpen: false, detailsCarId: null, currentSearch: null, request, optimisticSelection: null };
       }
       return {
         ...state,
         currentSearch: { args: event.args, result: event.result },
         request,
+        optimisticSelection: null,
         trip: {
           airport: event.result.rental.airport,
           airportName: event.result.rental.airport_name,
@@ -153,13 +157,19 @@ export function reduce(state: UIState, event: UIEvent): UIState {
     }
     case 'car.selected':
       if (state.request?.phase === 'submitting'
+        || (event.optimistic && state.request && state.request.phase !== 'awaiting_email')
         || !state.currentSearch?.result.cars.some(({ car_id }) => car_id === event.carId)) return state;
-      return { ...state, request: { phase: 'awaiting_email', carId: event.carId }, detailsOpen: false };
+      return { ...state, request: { phase: 'awaiting_email', carId: event.carId }, detailsOpen: false,
+        optimisticSelection: event.optimistic ? { carId: event.carId, previousRequest: state.request } : null };
+    case 'car.selection.dropped':
+      return state.optimisticSelection?.carId === event.carId
+        && state.request?.phase === 'awaiting_email' && state.request.carId === event.carId
+        ? { ...state, request: state.optimisticSelection.previousRequest, optimisticSelection: null } : state;
     case 'ui.request.submit':
       if (state.request?.carId !== event.carId || !['awaiting_email', 'failed'].includes(state.request.phase)) return state;
-      return { ...state, request: { phase: 'submitting', carId: event.carId, submissionId: event.submissionId } };
+      return { ...state, request: { phase: 'submitting', carId: event.carId, submissionId: event.submissionId }, optimisticSelection: null };
     case 'ui.request.back':
-      return state.request?.phase === 'submitting' ? state : { ...state, request: null };
+      return state.request?.phase === 'submitting' ? state : { ...state, request: null, optimisticSelection: null };
     case 'reservation.result':
       if (state.request?.phase !== 'submitting' || state.request.carId !== event.carId
         || state.request.submissionId !== event.submissionId) return state;
