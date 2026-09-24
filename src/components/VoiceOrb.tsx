@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react';
 import type { Phase } from '../state/uiState';
 
 const LABELS: Record<Phase, string> = {
-  idle: 'Tap the mic to start',
+  idle: 'Stopped',
   connecting: 'Connecting…',
   listening: 'Listening…',
   thinking: 'Thinking…',
-  speaking: 'Speaking…',
+  speaking: 'Talking…',
   error: 'Connection error',
   ended: 'Call ended'
 };
@@ -33,10 +33,12 @@ export function VoiceOrb({ phase }: { phase: Phase }) {
   return (
     <div className="orb-zone" data-phase={phase} ref={orb}>
       <div className="orb" aria-hidden="true">
-        <div className="orb__body">
-          <span className="orb__cloud" />
-          <span className="orb__veil" />
-          <span className="orb__rim" />
+        <div className="orb__sky">
+          <span className="orb__shade" />
+          <span className="orb__bank" />
+          <span className="orb__bank orb__bank--taper" />
+          <span className="orb__wisp" />
+          <span className="orb__wisp orb__wisp--high" />
         </div>
       </div>
       <p className="orb-zone__label" role="status"><span aria-hidden="true" />{LABELS[phase]}</p>
