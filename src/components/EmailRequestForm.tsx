@@ -43,17 +43,22 @@ export function EmailRequestForm({ car, rental, submitting, ended = false, failu
       <div className="renter__fields">
         <label className="renter__field">
           <span className="renter__label">Email</span>
-          <input ref={input} className="renter__input" type="email" name="email" autoComplete="email"
-            inputMode="email" required value={email} disabled={submitting || ended}
-            aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
-            onChange={(event) => { setEmail(event.target.value); setInvalid(false); }} />
+          <span className="renter__entry">
+            <input ref={input} className="renter__input" type="email" name="email" autoComplete="email"
+              inputMode="email" required value={email} disabled={submitting || ended}
+              aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
+              onChange={(event) => { setEmail(event.target.value); setInvalid(false); }} />
+            <span className="renter__hint">We'll email your request acknowledgement here.</span>
+          </span>
         </label>
         {error && <p id={errorId} className="request-error" role="alert">{error}</p>}
       </div>
-      <button className="renter__submit" type="submit" disabled={submitting || ended}>
-        {submitting ? 'Sending request...' : ended ? 'Call ended' : 'Send request'}
-      </button>
-      <button className="request-back" type="button" onClick={onBack} disabled={submitting || ended}>Back to cars</button>
+      <div className="renter__actions">
+        <button className="renter__submit" type="submit" disabled={submitting || ended}>
+          {submitting ? 'Sending request...' : ended ? 'Call ended' : 'Send request'}
+        </button>
+        <button className="request-back" type="button" onClick={onBack} disabled={submitting || ended}>Back to cars</button>
+      </div>
     </form>
   );
 }

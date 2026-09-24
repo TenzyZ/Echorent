@@ -12,6 +12,7 @@
   --danger: #A94438;
   --orb-dark: #372C1F;
   --orb-bronze: #9A7447;
+  --orb-gold: #D6AB50;
   --orb-light: #F9E7BA;
   --orb-pearl: #FFFCF1;
   --serif: ui-serif, 'New York', Georgia, 'Times New Roman', serif;
@@ -457,6 +458,18 @@ input { caret-color: var(--champagne); }
   gap: 8px;
 }
 
+.renter__entry {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.renter__hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .renter__label {
   flex: none;
   width: 44px;
@@ -540,6 +553,24 @@ input { caret-color: var(--champagne); }
 .request-summary dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 .request-error { margin: 0; color: var(--danger); font-size: 12px; }
 .request-status-text { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.renter__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.renter__actions .renter__submit {
+  flex: 1;
+  margin-top: 0;
+}
+
+.renter__actions .request-back {
+  flex: none;
+  margin: 0;
+  white-space: nowrap;
+}
+
 .request-back { display: block; margin: 10px auto 0; padding: 8px 12px; border: 0; background: transparent; color: var(--champagne); font: inherit; font-size: 12px; cursor: pointer; }
 .request-back:focus-visible { outline: 2px solid var(--champagne); outline-offset: 2px; }
 .request-back:disabled { opacity: .35; cursor: not-allowed; }
@@ -576,10 +607,9 @@ input { caret-color: var(--champagne); }
   animation: strip-pan var(--pan-duration, 8s) ease-in-out infinite;
 }
 
-/* Amber glass: a dark interior, drifting light, and a fine refracted edge. */
+/* Gold clouds move inside a crisp disc. The phase controls their energy. */
 .orb-zone {
   --orb-size: clamp(190px, 27vh, 260px);
-  --orb-speed: 24s;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -602,74 +632,70 @@ input { caret-color: var(--champagne); }
   border-radius: 50%;
   background: currentColor;
 }
+/* Phase values also apply in standalone Storybook previews. */
+[data-phase='idle'] { --orb-tempo: 2.2; --orb-grow: .84; --orb-sat: .72; --orb-bright: 1 }
+[data-phase='listening'] { --orb-tempo: 1; --orb-grow: 1; --orb-sat: 1.04; --orb-bright: 1.08 }
+[data-phase='thinking'] { --orb-tempo: .55; --orb-grow: .9; --orb-sat: .9; --orb-bright: .97 }
+[data-phase='speaking'] { --orb-tempo: .45; --orb-grow: 1.06; --orb-sat: 1.06; --orb-bright: 1.08 }
 .orb {
   position: relative;
   width: var(--orb-size);
   height: var(--orb-size);
-  isolation: isolate;
+  transform: scale(var(--orb-grow, 1));
+  filter: saturate(var(--orb-sat, 1)) brightness(var(--orb-bright, 1));
+  transition: transform 1.1s cubic-bezier(.16, 1, .3, 1), filter 1.1s ease;
 }
-.orb::after {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  width: 65%;
-  height: 9%;
-  bottom: -9%;
-  left: 17.5%;
-  border-radius: 50%;
-  background: var(--orb-bronze);
-  opacity: .15;
-  filter: blur(14px);
-}
-.orb__body {
+.orb__sky {
   position: absolute;
   inset: 0;
+  border-radius: 50%;
   overflow: hidden;
-  border-radius: 50%;
-  background:
-    radial-gradient(ellipse at 68% 76%, var(--orb-light), transparent 50%),
-    radial-gradient(ellipse at 28% 22%, var(--orb-bronze), var(--orb-dark) 72%);
-  box-shadow: inset 0 0 18px #fff8df80, inset 3px -8px 15px #50331250;
-  transform: rotate(-24deg);
-  transition: filter 600ms ease;
+  isolation: isolate;
+  background: var(--orb-light);
+  filter: blur(.7px);
+  -webkit-mask-image: radial-gradient(white 68%, transparent 72%);
+  mask-image: radial-gradient(white 68%, transparent 72%);
 }
-.orb__cloud {
+.orb__sky > :where(span) {
   position: absolute;
-  inset: -35%;
-  border-radius: 44%;
-  background: conic-gradient(from 35deg, transparent 6%, #ffedc680 17%, #fff8db 23%, #b7986380 29%, transparent 38%, #32241790 54%, #e7ce9860 66%, #ffedc6 74%, transparent 84%);
-  filter: blur(12px);
-  animation: orb-drift var(--orb-speed) linear infinite;
+  filter: blur(calc(var(--orb-size) * .035));
+  animation: orb-liquid calc(22s * var(--orb-tempo)) ease-in-out infinite;
 }
-.orb__veil {
-  position: absolute;
-  inset: 9% -24%;
-  border-radius: 50%;
-  border-top: 2px solid #fff9ddcc;
-  border-bottom: 1px solid #fff1cba0;
-  box-shadow: 0 -9px 18px #ffefc966, inset 0 14px 24px #eacb8a50, 0 9px 12px #3d2c2240;
-  transform: rotate(-32deg);
-  animation: orb-tide 9s ease-in-out infinite alternate;
+.orb__shade {
+  inset: -20% -8% 22% -22%;
+  background: linear-gradient(135deg, #f8d477 15%, #dea52f 58%, #ebc36a);
+  border-radius: 40% 60% 54% 46% / 46% 39% 61% 54%;
+  animation-delay: -8s;
 }
-.orb__rim {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(ellipse at 32% 12%, #fffdf6c0, transparent 23%),
-    radial-gradient(ellipse at 75% 90%, #fff9e4a0, transparent 26%);
-  box-shadow: inset 0 0 2px 1px #fffbed, inset -4px -3px 10px #fff6d8a0, inset 4px 4px 12px #fff8df70;
+.orb__bank {
+  inset: 8% -18% -20% 10%;
+  background: linear-gradient(155deg, #c5ad7e, #ddc89f 42%, #f8e6bb 76%);
+  border-radius: 62% 38% 46% 54% / 40% 59% 41% 60%;
+  animation-name: orb-liquid-counter;
+  animation-duration: calc(29s * var(--orb-tempo));
+  animation-delay: -12s;
 }
-[data-phase='idle'] .orb__body { filter: saturate(.65); }
-[data-phase='idle'] .orb__cloud,
-[data-phase='idle'] .orb__veil { animation-play-state: paused; }
-[data-phase='listening'] .orb__body { filter: brightness(1.15); }
-[data-phase='thinking'].orb-zone { --orb-speed: 12s; }
-[data-phase='thinking'] .orb__body { filter: saturate(.6) brightness(.9); }
-[data-phase='speaking'].orb-zone { --orb-speed: 16s; }
-[data-phase='speaking'] .orb__body { animation: orb-breathe 3s ease-in-out infinite; }
+.orb__bank--taper {
+  inset: 56% 20% -28% -25%;
+  background: linear-gradient(135deg, #f9d575, #e8b749 64%, #f2d394);
+  animation-direction: reverse;
+  animation-delay: -3s;
+}
+.orb__wisp {
+  inset: -22% -12% 44% 69%;
+  background: var(--orb-pearl);
+  border-radius: 40% 60% 32% 68% / 54% 30% 70% 46%;
+  animation-duration: calc(31s * var(--orb-tempo));
+  animation-delay: -6s;
+}
+.orb__wisp--high {
+  inset: 45% 74% -18% -22%;
+  animation-name: orb-liquid-counter;
+  animation-delay: -18s;
+}
 [data-phase='listening'] .orb-zone__label,
 [data-phase='speaking'] .orb-zone__label { color: var(--champagne); }
+.orb-zone[data-phase='idle'] .orb *,
 .orb-zone[data-paused='true'] .orb * { animation-play-state: paused; }
 .stage:has(.card) .orb-zone { --orb-size: 140px; padding-top: 24px; gap: 18px; }
 .stage:has(.agreement) .orb-zone, .stage:has(.renter) .orb-zone { --orb-size: 120px; padding-top: 14px; gap: 12px; }
@@ -912,13 +938,33 @@ input { caret-color: var(--champagne); }
   }
 }
 
-@keyframes orb-breathe {
-  0%, 100% { transform: rotate(-24deg) scale(1); }
-  50% { transform: rotate(-24deg) scale(1.035); }
+@keyframes orb-liquid {
+  0%, 100% {
+    transform: translate(-4%, 3%) rotate(-16deg) scale(1.03);
+    border-radius: 40% 60% 54% 46% / 46% 39% 61% 54%;
+  }
+  33% {
+    transform: translate(9%, -5%) rotate(26deg) scale(.94, 1.1);
+    border-radius: 64% 36% 34% 66% / 36% 64% 36% 64%;
+  }
+  68% {
+    transform: translate(-6%, 8%) rotate(-32deg) scale(1.08, .95);
+    border-radius: 32% 68% 63% 37% / 62% 32% 68% 38%;
+  }
 }
-@keyframes orb-drift { to { transform: rotate(360deg); } }
-@keyframes orb-tide {
-  to { transform: rotate(-12deg) translateY(8%); opacity: .65; }
+@keyframes orb-liquid-counter {
+  0%, 100% {
+    transform: translate(5%, -6%) rotate(18deg);
+    border-radius: 62% 38% 46% 54% / 40% 59% 41% 60%;
+  }
+  38% {
+    transform: translate(-12%, 4%) rotate(-28deg) scale(1.08, .92);
+    border-radius: 36% 64% 67% 33% / 58% 35% 65% 42%;
+  }
+  74% {
+    transform: translate(3%, -9%) rotate(38deg) scale(.94, 1.12);
+    border-radius: 55% 45% 28% 72% / 33% 68% 32% 67%;
+  }
 }
 
 @media (max-width: 600px) {
@@ -943,7 +989,8 @@ input { caret-color: var(--champagne); }
   .dock-zone { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .orb *, .card, .keyboard, .sheet, .strip__text--pan, .agreement, .renter { animation: none; }
+  .orb, .orb-zone .orb *, .card, .keyboard, .sheet, .strip__text--pan, .agreement, .renter { animation: none; }
+  .orb, .orb * { transition: none; }
   .strip { overflow-x: auto; justify-content: flex-start; mask-image: none; -webkit-mask-image: none; }
   .dock button:active { transform: none; }
 }
