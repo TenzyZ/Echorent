@@ -48,7 +48,7 @@ export function EmailRequestForm({ car, rental, submitting, ended = false, failu
               inputMode="email" required value={email} disabled={submitting || ended}
               aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined}
               onChange={(event) => { setEmail(event.target.value); setInvalid(false); }} />
-            <span className="renter__hint">We'll send the agreement to this email.</span>
+            <span className="renter__hint">We'll email your request acknowledgement here.</span>
           </span>
         </label>
         {error && <p id={errorId} className="request-error" role="alert">{error}</p>}
