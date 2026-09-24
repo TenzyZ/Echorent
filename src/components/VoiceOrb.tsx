@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { Phase } from '../state/uiState';
 
 const LABELS: Record<Phase, string> = {
-  idle: 'Stopped',
+  idle: 'Tap the mic to start',
   connecting: 'Connecting…',
   listening: 'Listening…',
   thinking: 'Thinking…',

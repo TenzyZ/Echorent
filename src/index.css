@@ -458,6 +458,18 @@ input { caret-color: var(--champagne); }
   gap: 8px;
 }
 
+.renter__entry {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.renter__hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .renter__label {
   flex: none;
   width: 44px;
@@ -541,6 +553,24 @@ input { caret-color: var(--champagne); }
 .request-summary dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 .request-error { margin: 0; color: var(--danger); font-size: 12px; }
 .request-status-text { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.renter__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.renter__actions .renter__submit {
+  flex: 1;
+  margin-top: 0;
+}
+
+.renter__actions .request-back {
+  flex: none;
+  margin: 0;
+  white-space: nowrap;
+}
+
 .request-back { display: block; margin: 10px auto 0; padding: 8px 12px; border: 0; background: transparent; color: var(--champagne); font: inherit; font-size: 12px; cursor: pointer; }
 .request-back:focus-visible { outline: 2px solid var(--champagne); outline-offset: 2px; }
 .request-back:disabled { opacity: .35; cursor: not-allowed; }
